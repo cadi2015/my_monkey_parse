@@ -28,10 +28,10 @@ import android.view.MotionEvent;
  * monkey motion event
  */
 public abstract class MonkeyMotionEvent extends MonkeyEvent {
-    private long mDownTime;
-    private long mEventTime;
-    private int mAction;
-    private SparseArray<MotionEvent.PointerCoords> mPointers;
+    private long mDownTime; //持有的按下时间
+    private long mEventTime; //持有的点击时间
+    private int mAction; //持有的动作
+    private SparseArray<MotionEvent.PointerCoords> mPointers; //持有的触摸点数量
     private int mMetaState;
     private float mXPrecision;
     private float mYPrecision;
@@ -123,22 +123,23 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
 
     /**
      * 
-     * @return instance of a motion event
+     * @return instance of a motion event 返回一个MotionEvent对象
      */
     private MotionEvent getEvent() {
-        int pointerCount = mPointers.size();
-        int[] pointerIds = new int[pointerCount];
-        MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[pointerCount];
+        int pointerCount = mPointers.size(); //检查触摸点的数量
+        int[] pointerIds = new int[pointerCount]; //创建数组对象，数组容量为触摸点的数量
+        MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[pointerCount]; //创建PointerCoords数组对象，容量也是触摸点的数量
         for (int i = 0; i < pointerCount; i++) {
-            pointerIds[i] = mPointers.keyAt(i);
-            pointerCoords[i] = mPointers.valueAt(i);
+            pointerIds[i] = mPointers.keyAt(i); //把SparseArray中的key，取出来，存放到临时数组中（典型的将所有key转化为一个list）
+            pointerCoords[i] = mPointers.valueAt(i); //把SparseArray中的value，取出来，存放到临时数组中（典型的将所有value转化为一个list）
         }
 
         MotionEvent ev = MotionEvent.obtain(mDownTime,
                 mEventTime < 0 ? SystemClock.uptimeMillis() : mEventTime,
                 mAction, pointerCount, pointerIds, pointerCoords,
-                mMetaState, mXPrecision, mYPrecision, mDeviceId, mEdgeFlags, mSource, mFlags);
-        return ev;
+                mMetaState, mXPrecision, mYPrecision, mDeviceId, mEdgeFlags, mSource, mFlags); //通过MotionEvent的obtain方法，获取到缓存的一个MotionEvent对象
+        //传入参数为按下的时间、点击的时间（做了保护，如果小于0，则直接使用当前系统开机至今的时间）、传入的动作
+        return ev; //使用的是MotionEvent对象
     }
 
     @Override
@@ -146,12 +147,19 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         return (getAction() == MotionEvent.ACTION_UP);
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager WMS服务binder对象
+     * @param iam wires to current activity manager ams服务binder对象
+     * @param verbose a log switch log开关
+     * @return  注入事件的结果
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        MotionEvent me = getEvent();
+        MotionEvent me = getEvent(); //用于获取表示事件的MotionEvent对象
         if ((verbose > 0 && !mIntermediateNote) || verbose > 1) {
-            StringBuilder msg = new StringBuilder(":Sending ");
-            msg.append(getTypeLabel()).append(" (");
+            StringBuilder msg = new StringBuilder(":Sending "); //用于保存日志的StringBuilder对象
+            msg.append(getTypeLabel()).append(" ("); //添加事件类型和一个（
             switch (me.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     msg.append("ACTION_DOWN");
@@ -186,7 +194,7 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         }
         try {
             if (!InputManager.getInstance().injectInputEvent(me,
-                    InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) {
+                    InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) { //依赖InputManagerService注入事件
                 return MonkeyEvent.INJECT_FAIL;
             }
         } finally {

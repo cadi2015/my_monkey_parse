@@ -21,13 +21,14 @@ import java.util.Random;
 
 /**
  * class for keeping a monkey event queue
+ * 双向链表，存储的元素是MonkeyEvent
  */
 @SuppressWarnings("serial")
 public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
 
-    private Random mRandom;
-    private long mThrottle;
-    private boolean mRandomizeThrottle;
+    private Random mRandom; //持有Random对象
+    private long mThrottle; //持有间隔时间
+    private boolean mRandomizeThrottle; //持有随机间隔
 
     public MonkeyEventQueue(Random random, long throttle, boolean randomizeThrottle) {
         super();
@@ -39,9 +40,9 @@ public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
     @Override
     public void addLast(MonkeyEvent e) {
         super.add(e);
-        if (e.isThrottlable()) {
-            long throttle = mThrottle;
-            if (mRandomizeThrottle && (mThrottle > 0)) {
+        if (e.isThrottlable()) { //事件是否支持间隔时间
+            long throttle = mThrottle; //固定间隔值
+            if (mRandomizeThrottle && (mThrottle > 0)) { //如果支持随机间隔，重新计算间隔时间
                 throttle = mRandom.nextLong();
                 if (throttle < 0) {
                     throttle = -throttle;
@@ -49,7 +50,7 @@ public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
                 throttle %= mThrottle;
                 ++throttle;
             }
-            super.add(new MonkeyThrottleEvent(throttle));
+            super.add(new MonkeyThrottleEvent(throttle));  //向当前事件的后面直接添加一个间隔事件
         }
     }
 }

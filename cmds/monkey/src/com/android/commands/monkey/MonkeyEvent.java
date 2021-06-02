@@ -21,16 +21,17 @@ import android.view.IWindowManager;
 
 /**
  * abstract class for monkey event
+ * 表示Monkey事件的抽象类，它子类产生的对象，表示一个具体的事件
  */
 public abstract class MonkeyEvent {
     protected int eventType;
-    public static final int EVENT_TYPE_KEY = 0;
-    public static final int EVENT_TYPE_TOUCH = 1;
-    public static final int EVENT_TYPE_TRACKBALL = 2;
+    public static final int EVENT_TYPE_KEY = 0; //用于表示哪个事件，此常量值表示KEY事件
+    public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件
+    public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL
     public static final int EVENT_TYPE_ROTATION = 3;  // Screen rotation
     public static final int EVENT_TYPE_ACTIVITY = 4;
     public static final int EVENT_TYPE_FLIP = 5; // Keyboard flip
-    public static final int EVENT_TYPE_THROTTLE = 6;
+    public static final int EVENT_TYPE_THROTTLE = 6; //延迟也算一个事件，只不过什么也没做而已，有道理
     public static final int EVENT_TYPE_PERMISSION = 7;
     public static final int EVENT_TYPE_NOOP = 8;
 

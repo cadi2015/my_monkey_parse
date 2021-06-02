@@ -73,7 +73,7 @@ public class MonkeyPermissionUtil {
     private final IPermissionManager mPermManager;
 
     /** keep track of runtime permissions requested for each package targeted */
-    private Map<String, List<PermissionInfo>> mPermissionMap;
+    private Map<String, List<PermissionInfo>> mPermissionMap; //持有的Map，Key为String，Value为List对象
 
     public MonkeyPermissionUtil() {
         mPm = IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
@@ -114,11 +114,15 @@ public class MonkeyPermissionUtil {
                 && isModernPermissionGroup(pi.group);
     }
 
+    /**
+     *
+     * @return
+     */
     public boolean populatePermissionsMapping() {
         mPermissionMap = new HashMap<>();
         try {
             List<?> pkgInfos = mPm.getInstalledPackages(
-                    PackageManager.GET_PERMISSIONS, UserHandle.myUserId()).getList();
+                    PackageManager.GET_PERMISSIONS, UserHandle.myUserId()).getList(); //所有已安装包的信息
             for (Object o : pkgInfos) {
                 PackageInfo info = (PackageInfo)o;
                 if (!shouldTargetPackage(info)) {
@@ -144,7 +148,7 @@ public class MonkeyPermissionUtil {
             }
         } catch (RemoteException re) {
             Logger.err.println("** Failed talking with package manager!");
-            return false;
+            return false; //PMS出错，会走这里
         }
         if (!mPermissionMap.isEmpty()) {
             mTargetedPackages = new ArrayList<>(mPermissionMap.keySet());
@@ -152,6 +156,9 @@ public class MonkeyPermissionUtil {
         return true;
     }
 
+    /**
+     * 向标准错误流输出权限信息
+     */
     public void dump() {
         Logger.out.println("// Targeted packages and permissions:");
         for (Map.Entry<String, List<PermissionInfo>> e : mPermissionMap.entrySet()) {

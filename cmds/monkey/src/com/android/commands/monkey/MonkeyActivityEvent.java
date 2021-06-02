@@ -34,6 +34,10 @@ public class MonkeyActivityEvent extends MonkeyEvent {
     private ComponentName mApp;
     long mAlarmTime = 0;
 
+    /**
+     *
+     * @param app 组件名对象
+     */
     public MonkeyActivityEvent(ComponentName app) {
         super(EVENT_TYPE_ACTIVITY);
         mApp = app;
@@ -47,18 +51,26 @@ public class MonkeyActivityEvent extends MonkeyEvent {
 
     /**
      * @return Intent for the new activity
+     *  创建Intent对象，用于启动Activity
      */
     private Intent getEvent() {
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        intent.setComponent(mApp);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-        return intent;
+        Intent intent = new Intent(Intent.ACTION_MAIN); //创建Intent对象，Action为ACTION_MAIN
+        intent.addCategory(Intent.CATEGORY_LAUNCHER); //设置Category
+        intent.setComponent(mApp); //设置ComponentName对象（new ComponentName(packageName, r.activityInfo.name)），可见包名和Activity名，组成了ComponentName
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED); //设置启动Activity的Task，在一个新的
+        return intent; //返回Intent对象
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager 这里没有用
+     * @param iam wires to current activity manager 这里用AMS
+     * @param verbose a log switch log开关
+     * @return
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        Intent intent = getEvent();
+        Intent intent = getEvent(); //获取Intent对象
         if (verbose > 0) {
             Logger.out.println(":Switch: " + intent.toUri(0));
         }
@@ -71,10 +83,10 @@ public class MonkeyActivityEvent extends MonkeyEvent {
 
         try {
             iam.startActivityAsUserWithFeature(null, getPackageName(), null, intent, null, null,
-                    null, 0, 0, null, null, ActivityManager.getCurrentUser());
+                    null, 0, 0, null, null, ActivityManager.getCurrentUser()); //依靠AMS系统服务切换Activity
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with activity manager!");
-            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION;
+            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION; //当远程服务出错时，返回注入事件失败的错误码
         } catch (SecurityException e) {
             if (verbose > 0) {
                 Logger.out.println("** Permissions error starting activity "

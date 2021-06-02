@@ -43,6 +43,7 @@ import java.util.Random;
  * captureDispatchFlip(true)
  * ...
  * </pre>
+ * MonkeySourceScript is a MonkeyEventSource
  */
 public class MonkeySourceScript implements MonkeyEventSource {
     private int mEventCountInScript = 0; // total number of events in the file

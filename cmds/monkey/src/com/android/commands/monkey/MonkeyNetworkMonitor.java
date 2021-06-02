@@ -86,12 +86,12 @@ public class MonkeyNetworkMonitor extends IIntentReceiver.Stub {
     public void register(IActivityManager am) throws RemoteException {
         if (LDEBUG) Logger.out.println("registering Receiver");
         am.registerReceiverWithFeature(null, null, null, this, filter, null, UserHandle.USER_ALL,
-                0);
+                0); //将此Binder对象，注册到AMS中，当网络状态出现变化，可以知道此Binder，我靠，没想到Monkey有两个Binder与AMS进行通信
     }
 
     public void unregister(IActivityManager am) throws RemoteException {
         if (LDEBUG) Logger.out.println("unregistering Receiver");
-        am.unregisterReceiver(this);
+        am.unregisterReceiver(this); //告知AMS，取消自己的注册
     }
 
     public void stop() {

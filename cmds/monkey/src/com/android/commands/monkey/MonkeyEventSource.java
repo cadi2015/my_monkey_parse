@@ -17,17 +17,18 @@
 package com.android.commands.monkey;
 
 /**
- * event source interface
+ * event source interface，表示具备monkey事件能力
  */
 public interface MonkeyEventSource {
     /**
      * @return the next monkey event from the source
+     * 用于返回下一个事件
      */
     public MonkeyEvent getNextEvent();
 
     /**
      * set verbose to allow different level of log
-     *
+     * 用于设置日志等级
      * @param verbose output mode? 1= verbose, 2=very verbose
      */
     public void setVerbose(int verbose);
@@ -37,6 +38,7 @@ public interface MonkeyEventSource {
      *
      * @return false if something fails, e.g. factor failure in random source or
      *         file can not open from script source etc
+     * 用于检查事件比例是否有效
      */
     public boolean validate();
 }

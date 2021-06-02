@@ -49,9 +49,12 @@ public abstract class MonkeyUtils {
         return sFilter;
     }
 
+    /**
+     * PackageFilter对象持有两个Set对象
+     */
     public static class PackageFilter {
-        private Set<String> mValidPackages = new HashSet<>();
-        private Set<String> mInvalidPackages = new HashSet<>();
+        private Set<String> mValidPackages = new HashSet<>(); //用于持有有效的包名
+        private Set<String> mInvalidPackages = new HashSet<>(); //用于持有无效的包名
 
         private PackageFilter() {
         }
@@ -83,18 +86,23 @@ public abstract class MonkeyUtils {
          * @return Returns true if we should run against pkg.
          */
         public boolean checkEnteringPackage(String pkg) {
-            if (mInvalidPackages.size() > 0) {
+            if (mInvalidPackages.size() > 0) { //先检查无效包名的集合中，是否包含pkg
                 if (mInvalidPackages.contains(pkg)) {
-                    return false;
+                    return false;  //如果包含，返回false，表示包名无需输入
                 }
-            } else if (mValidPackages.size() > 0) {
-                if (!mValidPackages.contains(pkg)) {
+            } else if (mValidPackages.size() > 0) {  //没有设置无效包名，直接检查有效包名的Set
+                if (!mValidPackages.contains(pkg)) { //如果有效的Set中没有pkg，则返回false，表示无效
                     return false;
                 }
             }
             return true;
         }
 
+        /**
+         * 遍历两个set中的包名，并输出日志
+         * 1、有效包名
+         * 2、无效包名
+         */
         public void dump() {
             if (mValidPackages.size() > 0) {
                 Iterator<String> it = mValidPackages.iterator();
@@ -103,9 +111,9 @@ public abstract class MonkeyUtils {
                 }
             }
             if (mInvalidPackages.size() > 0) {
-                Iterator<String> it = mInvalidPackages.iterator();
-                while (it.hasNext()) {
-                    Logger.out.println(":DisallowPackage: " + it.next());
+                Iterator<String> it = mInvalidPackages.iterator(); //获取迭代器对象
+                while (it.hasNext()) { //如果存在元素
+                    Logger.out.println(":DisallowPackage: " + it.next()); //输出日志
                 }
             }
         }

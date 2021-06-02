@@ -36,6 +36,13 @@ public class MonkeyInstrumentationEvent extends MonkeyEvent {
         mRunnerName = runnerName;
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager 表示WMS系统服务提供的远程功能
+     * @param iam wires to current activity manager 表示AMS系统服务提供的远程功能
+     * @param verbose a log switch 用于切换log
+     * @return 表示注入事件的结果
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
         ComponentName cn = ComponentName.unflattenFromString(mRunnerName);
@@ -47,7 +54,7 @@ public class MonkeyInstrumentationEvent extends MonkeyEvent {
         try {
             iam.startInstrumentation(cn, null, 0, args, null, null, 0, null);
         } catch (RemoteException e) {
-            Logger.err.println("** Failed talking with activity manager!");
+            Logger.err.println("** Failed talking with activity manager!"); //AMS系统服务出现问题，说明注入事件失败，
             return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION;
         }
         return MonkeyEvent.INJECT_SUCCESS;
