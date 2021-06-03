@@ -25,9 +25,10 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 /**
  * monkey key event
+ * 每个创建的镀锡表示系统事件,3个不同的构造方法，满足不同的需求
  */
 public class MonkeyKeyEvent extends MonkeyEvent {
-    private int mDeviceId;
+    private int mDeviceId;  //持有的设备id，描述是硬件设备，比如键盘
     private long mEventTime;
     private long mDownTime;
     private int mAction;
@@ -36,12 +37,28 @@ public class MonkeyKeyEvent extends MonkeyEvent {
     private int mMetaState;
     private int mRepeatCount;
 
-    private KeyEvent mKeyEvent;
+    private KeyEvent mKeyEvent; //持有的KeyEvent对象
 
+    /**
+     *
+     * @param action 表示系统事件动作整型值
+     * @param keyCode 表示对应动作的整型值
+     */
     public MonkeyKeyEvent(int action, int keyCode) {
         this(-1, -1, action, keyCode, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0);
     }
 
+    /**
+     *
+     * @param downTime 表示按下时间
+     * @param eventTime 表示发生时间
+     * @param action 表示要做的动作
+     * @param keyCode 表示整型keyCode值
+     * @param repeatCount 表示重复数量
+     * @param metaState 表示原始状态
+     * @param device 表示设备
+     * @param scanCode 表示扫描码?
+     */
     public MonkeyKeyEvent(long downTime, long eventTime, int action,
             int keyCode, int repeatCount, int metaState,
             int device, int scanCode) {
@@ -56,6 +73,10 @@ public class MonkeyKeyEvent extends MonkeyEvent {
         mScanCode = scanCode;
     }
 
+    /**
+     *
+     * @param e 传入KeyEvent对象
+     */
     public MonkeyKeyEvent(KeyEvent e) {
         super(EVENT_TYPE_KEY);
         mKeyEvent = e;
@@ -96,20 +117,27 @@ public class MonkeyKeyEvent extends MonkeyEvent {
         return (getAction() == KeyEvent.ACTION_UP);
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager ，WMS服务
+     * @param iam wires to current activity manager AMS服务
+     * @param verbose a log switch 打印log用的
+     * @return 注入事件的成功与失败
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
         if (verbose > 1) {
-            String note;
+            String note;  //用于存储动作的字符串
             if (mAction == KeyEvent.ACTION_UP) {
-                note = "ACTION_UP";
+                note = "ACTION_UP"; //存储的是，存储为ACTION_UP
             } else {
-                note = "ACTION_DOWN";
+                note = "ACTION_DOWN"; //其他情况直接是ACTION_DOWN，这里怎么没有ACTION_MOVE
             }
 
             try {
                 Logger.out.println(":Sending Key (" + note + "): "
                         + mKeyCode + "    // "
-                        + MonkeySourceRandom.getKeyName(mKeyCode));
+                        + MonkeySourceRandom.getKeyName(mKeyCode)); //向标准错误流输出日志，keycode
             } catch (ArrayIndexOutOfBoundsException e) {
                 Logger.out.println(":Sending Key (" + note + "): "
                         + mKeyCode + "    // Unknown key event");

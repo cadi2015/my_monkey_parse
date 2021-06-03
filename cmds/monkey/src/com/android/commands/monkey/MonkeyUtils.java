@@ -23,12 +23,13 @@ import java.util.Set;
 
 /**
  * Misc utilities.
+ * 第一次工具类使用abstract修饰，拽，牛逼
  */
 public abstract class MonkeyUtils {
 
-    private static final java.util.Date DATE = new java.util.Date();
+    private static final java.util.Date DATE = new java.util.Date(); //MonkeyUtils类持有的Date对象
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
-        "yyyy-MM-dd HH:mm:ss.SSS ");
+        "yyyy-MM-dd HH:mm:ss.SSS "); //MonkeyUtils类持有的SimpleDateFormat对象
     private static PackageFilter sFilter;
 
     private MonkeyUtils() {
@@ -50,12 +51,15 @@ public abstract class MonkeyUtils {
     }
 
     /**
-     * PackageFilter对象持有两个Set对象
+     * 静态内部类，创建的PackageFilter对象会持有两个Set对象
      */
     public static class PackageFilter {
-        private Set<String> mValidPackages = new HashSet<>(); //用于持有有效的包名
-        private Set<String> mInvalidPackages = new HashSet<>(); //用于持有无效的包名
+        private Set<String> mValidPackages = new HashSet<>(); //持有一个，用于保存有效包名的Set对象
+        private Set<String> mInvalidPackages = new HashSet<>(); //持有另外一个，用于持有无效包名的Set对象
 
+        /**
+         * 私有构造方法，不允许通过构造方法创建对象，但是同一个类中的外部类可以，牛逼！思路清晰
+         */
         private PackageFilter() {
         }
 

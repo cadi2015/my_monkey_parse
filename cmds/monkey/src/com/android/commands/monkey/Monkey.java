@@ -56,6 +56,7 @@ import java.util.Set;
 
 /**
  * Application that injects random key events and other actions into the system.
+ * 向系统中注入随机键事件和其他操作的应用程序，写的牛逼
  */
 public class Monkey {
 
@@ -63,6 +64,7 @@ public class Monkey {
      * Monkey Debugging/Dev Support
      * <p>
      * All values should be zero when checking in.
+     *
      */
     private final static int DEBUG_ALLOW_ANY_STARTS = 0; //允许的调试选项?
 
@@ -244,7 +246,7 @@ public class Monkey {
 
     private static int NUM_READ_TOMBSTONE_RETRIES = 5;
 
-    private HashSet<Long> mTombstones = null;
+    private HashSet<Long> mTombstones = null; //持有的用于记录native崩溃文件的情况，Long是tonmb文件的修改时间，在内存中持有对象，当然是为了记录了，赞
 
     float[] mFactors = new float[MonkeySourceRandom.FACTORZ_COUNT]; //创建一个float数组对象，存放12个元素，每个元素值表示某个事件的比例，不同的下标代表不同的事件类型
 
@@ -255,9 +257,9 @@ public class Monkey {
     private boolean mPermissionTargetSystem = false;
 
     // information on the current activity.
-    public static Intent currentIntent; //Monkey类持有的currentIntent，表示当前发出的Intent
+    public static Intent currentIntent; //Monkey类持有的currentIntent，表示当前发出的Intent（表示要启动哪个Activity)
 
-    public static String currentPackage; //Monkey类持有的currentPackage，表示当前操作包名
+    public static String currentPackage; //Monkey类持有的currentPackage，表示当前正在操作的包名（应用）
 
     /**
      * Monitor operations happening in the system. //Binder对象
@@ -284,9 +286,9 @@ public class Monkey {
                         + intent + " in package " + pkg);
                 StrictMode.setThreadPolicy(savedPolicy);
             }
-            currentPackage = pkg; //将AMS启动的包名保存到currentPackage中，Monkey知道正在启动哪个包
-            currentIntent = intent; //将启动Activity的Intent对象也保存到这里一个
-            return allow;
+            currentPackage = pkg; //将AMS启动的包名保存到currentPackage中，Monkey即可知道正在启动的是哪个应用（个别需求会用到）
+            currentIntent = intent; //将启动Activity的Intent对象也保存到这里一个，Monkey即可知道目前启动的Activity，用的哪个Intent（个别需求会用到）
+            return allow; //返回值表示是否允许启动Activity
         }
 
         /**
@@ -386,9 +388,16 @@ public class Monkey {
                     return !mKillProcessAfterError; //这个值，是给AMS用的呀……这里暂时有点蒙蔽
                 }
             }
-            return false;
+            return false; //当一个App进程出现崩溃后触发，当返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）
         }
 
+        /**
+         * 鉴定为ANR时会触发？Early是什么意思？
+         * @param processName 进程名
+         * @param pid 进程id
+         * @param annotation 描述？
+         * @return 返回一个0
+         */
         public int appEarlyNotResponding(String processName, int pid, String annotation) {
             return 0;
         }
@@ -398,7 +407,8 @@ public class Monkey {
          * @param processName 进程名
          * @param pid 进程id
          * @param processStats 进程状态
-         * @return
+         * @return 当返回0时，表示会弹出应用无响应的dialog，如果返回1时，表示继续等待，如果返回-1时，表示立即杀死进程
+         * 当一个应用进程出现ANR时会触发
          */
         public int appNotResponding(String processName, int pid, String processStats) {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites();
@@ -427,9 +437,11 @@ public class Monkey {
         }
 
         /**
+         * 当系统看门狗监测到系统挂了会触发该方法
          * 系统没响应时，AMS会回调此方法
          * @param message 没响应的原因
          * @return 返回的数字，表示退出状态码
+         * 如果返回1，表示继续等待，返回-1，表示系统正常自杀（这里的正常自杀，系统自己主动自杀，该保存的数据先保存好，然后自杀，并不是因为其他原因导致的自杀）
          */
         public int systemNotResponding(String message) {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites();
@@ -462,8 +474,8 @@ public class Monkey {
     /**
      * Run the procrank tool to insert system status information into the debug
      * report.
-     * 报告名字为procrank
-     * 工具名称也为procrank，看来使用的是一个命令行工具
+     * 报告名为procrank
+     * 工具名也为procrank
      */
     private void reportProcRank() {
         commandLineReport("procrank", "procrank");
@@ -513,76 +525,77 @@ public class Monkey {
 
     /**
      * Print report from a single command line.
+     * 从单个命令行中打印打包
      * <p>
      * TODO: Use ProcessBuilder & redirectErrorStream(true) to capture both
      * streams (might be important for some command lines)
      *
      * @param reportName Simple tag that will print before the report and in
-     *            various annotations. 文件名称
-     * @param command Command line to execute. 执行的可执行文件命令
+     *            various annotations. 报告名称
+     * @param command Command line to execute. 调用的可执行文件
      */
     private void commandLineReport(String reportName, String command) {
-        Logger.err.println(reportName + ":");
-        Runtime rt = Runtime.getRuntime();
-        Writer logOutput = null;
+        Logger.err.println(reportName + ":"); //向标准错误流中输入报告名和一个冒号
+        Runtime rt = Runtime.getRuntime(); //获取运行时对象
+        Writer logOutput = null; //输出字符流对象（由内存到磁盘）
 
         try {
             // Process must be fully qualified here because android.os.Process
             // is used elsewhere
-            java.lang.Process p = Runtime.getRuntime().exec(command); //子进程执行命令，替换命令，进程中执行某个程序
+            java.lang.Process p = Runtime.getRuntime().exec(command); //替换命令，在新的进程中执行某个程序，返回一个Process对象表示子进程
 
-            if (mRequestBugreport) {
+            if (mRequestBugreport) { //检查命令行参数中是否传入了需要检查bugreport
                 logOutput =
                         new BufferedWriter(new FileWriter(new File(Environment
-                                .getLegacyExternalStorageDirectory(), reportName), true));
+                                .getLegacyExternalStorageDirectory(), reportName), true)); //创建一个通道，从内存中向reportName命名的文件中写入日志
             }
             // pipe everything from process stdout -> System.err
-            InputStream inStream = p.getInputStream(); //子进程的标准输入流……，我猜测Monkey主进程会等待子进程完成工作
-            InputStreamReader inReader = new InputStreamReader(inStream);
-            BufferedReader inBuffer = new BufferedReader(inReader);
+            InputStream inStream = p.getInputStream(); //获取子进程的标准输入流对象（内存中读到的内容）……，我猜测Monkey主进程会等待子进程完成工作
+            InputStreamReader inReader = new InputStreamReader(inStream); //将输入字节流，转到成输入字符流，
+            BufferedReader inBuffer = new BufferedReader(inReader); //在内存中创建一个BufferedReader对象作为缓冲区，用于缓存字符串流中的数据
             String s;
-            while ((s = inBuffer.readLine()) != null) {
-                if (mRequestBugreport) {
+            while ((s = inBuffer.readLine()) != null) { //一行一行的读缓冲区中的数据
+                if (mRequestBugreport) { //如果需要执行Bugreport命令保存到文件中
                     try {
                         // When no space left on the device the write will
                         // occurs an I/O exception, so we needed to catch it
                         // and continue to read the data of the sync pipe to
                         // aviod the bugreport hang forever.
-                        logOutput.write(s);
+                        logOutput.write(s); //把在子进程中执行的bugreport程序中的获取到的内容，从内存写入到文件中
                         logOutput.write("\n");
-                    } catch (IOException e) {
-                        while(inBuffer.readLine() != null) {}
-                        Logger.err.println(e.toString());
+                    } catch (IOException e) { //发生IO异常，直接捕获
+                        while(inBuffer.readLine() != null) {} //处理也比较粗暴，先不停的一行一行的读取，直到没有内容后
+                        Logger.err.println(e.toString()); //才在标准错误流中打印异常的堆栈信息
                         break;
                     }
                 } else {
-                    Logger.err.println(s);
+                    Logger.err.println(s); //这里时不需要将bugreport的内容保存在文件中，只是在monkey的标准错误流中输出
                 }
             }
 
-            int status = p.waitFor(); //就是在这里，Monkey进程会等待，子进程完成工作（进程间同步），这就是Monkey的工作机制
-            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，向标准错误流中打印日志，以及状态
+            int status = p.waitFor(); //在这里，Monkey主进程（主线程）会等待，子进程执行的命令行程序当然不仅仅是bugreport（进程间同步），还要获取子进程的退出状态码
+            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，向Monkey的标准错误流打印日志，以及退出状态码
 
             if (logOutput != null) {
-                logOutput.close();
+                logOutput.close(); //关闭输出字符串流对象
             }
-        } catch (Exception e) {
+        } catch (Exception e) { //捕获到其他的异常
             Logger.err.println("// Exception from " + reportName + ":");
-            Logger.err.println(e.toString());
+            Logger.err.println(e.toString()); //直接到标准错误流中输出内容
         }
     }
 
     // Write the numbe of iteration to the log
 
     /**
-     *
-     * @param count 表示事件数量
+     * 当没有提取到事件时，会走这个方法，这是用于调试的文件撒
+     * @param count 表示事件的数量
      */
     private void writeScriptLog(int count) {
         // TO DO: Add the script file name to the log.
         try {
             Writer output = new BufferedWriter(new FileWriter(new File(
-                    Environment.getLegacyExternalStorageDirectory(), "scriptlog.txt"), true));
+                    Environment.getLegacyExternalStorageDirectory(), "scriptlog.txt"), true)); //有一个scriptlog.txt文件，看下这是哪个目录，getLegacyExternalStorageDirectory，原来时/mnt/sdcard/目录，发现和/sdcard是同一个目录
             output.write("iteration: " + count + " time: "
                     + MonkeyUtils.toCalendarTime(System.currentTimeMillis()) + "\n");
             output.close();
@@ -877,7 +890,7 @@ public class Monkey {
                     mIgnoreNativeCrashes = true;
                 } else if (opt.equals("--kill-process-after-error")) {
                     mKillProcessAfterError = true;
-                } else if (opt.equals("--hprof")) {
+                } else if (opt.equals("--hprof")) { //指定hprof，会构建所有进程的信息
                     mGenerateHprof = true;
                 } else if (opt.equals("--match-description")) {
                     mMatchDescription = nextOptionData();
@@ -1298,10 +1311,10 @@ public class Monkey {
                             cycleCounter++;
                         }
                     }
-                } else { //这是从双向链表中，没有提取到事件对象的情况
+                } else { //这是从双向链表中，没有提取到事件对象的情况，厉害，这里基本走不到……牛逼，这个调试方法好
                     if (!mCountEvents) { //如果不需要计算事件数量
                         cycleCounter++; //循环次数增加1
-                        writeScriptLog(cycleCounter); //把数量写入脚本文件
+                        writeScriptLog(cycleCounter); //把循环数量写入脚本文件
                         //Capture the bugreport after n iteration
                         if (mGetPeriodicBugreport) { //这是处理呢
                             if ((cycleCounter % mBugreportFrequency) == 0) {
@@ -1316,7 +1329,7 @@ public class Monkey {
                 //每完整的循环执行一次，Monkey对象锁会释放掉，不然别人哪有机会……
             }
         } catch (RuntimeException e) {
-            Logger.error("** Error: A RuntimeException occurred:", e); //捕获到运行时异常，直接标准错误流流输出结果了
+            Logger.error("** Error: A RuntimeException occurred:", e); //捕获到运行时异常，标准错误流输出结果，以及在标准错误流中打印异常对象的调用堆栈信息
         }
         Logger.out.println("Events injected: " + eventCounter); //当系统出现错误，或者事件数量到了，标准输出流中输出事件数
         return eventCounter; //返回注入的事件数
@@ -1326,16 +1339,19 @@ public class Monkey {
      * Send SIGNAL_USR1 to all processes. This will generate large (5mb)
      * profiling reports in data/misc, so use with care.
      * 发送一个信号，给所有进程，报告会存放到data/misc目录下
+     * 用于对比所有进程的信息，牛逼
+     * 没发生崩溃时，持久化一份
+     * 发生崩溃时，也可以持久化一份
      */
     private void signalPersistentProcesses() {
         try {
-            mAm.signalPersistentProcesses(Process.SIGNAL_USR1);
+            mAm.signalPersistentProcesses(Process.SIGNAL_USR1); //使用AMS的signalPersistentProcesses方法，并把信号传递过去，SIGNAL_USR1这个信号是一个自定义信号
 
-            synchronized (this) {
-                wait(2000);
-            }
+            synchronized (this) { //monkey主线程获取Monkey对象锁
+                wait(2000); //主线程休息2s
+            } //释放Monkey对象锁
         } catch (RemoteException e) {
-            Logger.err.println("** Failed talking with activity manager!");
+            Logger.err.println("** Failed talking with activity manager!"); //发生远程服务错误，在标准错误流中输出一行信息
         } catch (InterruptedException e) {
         }
     }
@@ -1343,16 +1359,16 @@ public class Monkey {
     /**
      * Watch for appearance of new tombstone files, which indicate native
      * crashes.
-     * 检查native崩溃的方法，同样检查的是tobstones文件数量
+     * 检查native崩溃的方法，检查tobstones文件的数量，每执行一个事件都会检查一下文件数量
      * @return Returns true if new files have appeared in the list
      */
     private boolean checkNativeCrashes() {
-        String[] tombstones = TOMBSTONES_PATH.list(); //检查这个/data/tombstones目录的文件数
+        String[] tombstones = TOMBSTONES_PATH.list(); //检查这个/data/tombstones目录，获取到所有文件名
 
         // shortcut path for usually empty directory, so we don't waste even
         // more objects
         if (tombstones == null || tombstones.length == 0) {
-            mTombstones = null;
+            mTombstones = null; //mTombstones持有的集合对象，每个元素是文件的最后修改时间，厉害，不用文件名，用文件的修改时间
             return false; //说明没有native崩溃
         }
 
@@ -1374,7 +1390,7 @@ public class Monkey {
         }
 
         // keep the new list for the next time
-        mTombstones = newStones; //将临时创建的Set对象，赋值给Monkey对象持有的Set对象负责持有
+        mTombstones = newStones; //将临时创建的Set对象，赋值给Monkey对象持有的Set对象负责持有，这样旧的Set对象，在方法结束后，会被回收掉
 
         return result; //返回是否发生native崩溃的结果
     }

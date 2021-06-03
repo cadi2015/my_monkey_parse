@@ -18,6 +18,12 @@ package com.android.commands.monkey;
 
 import android.util.Log;
 
+/**
+ * 有开关，默认均为true
+ * 用于向标准输出流打印文本，同时使用logcat支持的Log.i输出日志
+ * 用于向标准错误流打印文本，同时使用logcat支持的Log.w输出日志
+ *
+ */
 public abstract class Logger {
     private static final String TAG = "Monkey";
 
@@ -50,8 +56,8 @@ public abstract class Logger {
     /**
      * Log an exception (throwable) at the ERROR level with an accompanying message.
      *
-     * @param msg The message accompanying the exception.
-     * @param t The exception (throwable) to log.
+     * @param msg The message accompanying the exception. 需要向标准错误流打印的文本信息
+     * @param t The exception (throwable) to log. 需要输出哪个异常对象的堆栈信息
      */
     public static void error(String msg, Throwable t) {
         err.println(msg);

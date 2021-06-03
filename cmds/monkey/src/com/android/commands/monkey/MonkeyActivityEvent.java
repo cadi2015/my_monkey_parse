@@ -29,20 +29,27 @@ import android.view.IWindowManager;
 
 /**
  * monkey activity event
+ * 表示操作Activity的事件，依赖于AM启动Activity
+ * 两种创建对象的方式，根据需求，创建不同初始化参数的对象
  */
 public class MonkeyActivityEvent extends MonkeyEvent {
-    private ComponentName mApp;
-    long mAlarmTime = 0;
+    private ComponentName mApp; //持有的ComponentName对象（目前是用来启动每个App的Launcher Activity）
+    long mAlarmTime = 0; //持有的通知时间，目前来看是脚本形式的时候可能会用到这个时间，命令行启动的时候并没有使用这个时间
 
     /**
      *
-     * @param app 组件名对象
+     * @param app 传入组件名对象
      */
     public MonkeyActivityEvent(ComponentName app) {
         super(EVENT_TYPE_ACTIVITY);
         mApp = app;
     }
 
+    /**
+     *
+     * @param app 传入ComponentName对象
+     * @param arg 传入一个表示通知时间传递参数
+     */
     public MonkeyActivityEvent(ComponentName app, long arg) {
         super(EVENT_TYPE_ACTIVITY);
         mApp = app;
@@ -52,6 +59,7 @@ public class MonkeyActivityEvent extends MonkeyEvent {
     /**
      * @return Intent for the new activity
      *  创建Intent对象，用于启动Activity
+     *  目前创建的Intent，均是用于启动某个App的主Activity用的
      */
     private Intent getEvent() {
         Intent intent = new Intent(Intent.ACTION_MAIN); //创建Intent对象，Action为ACTION_MAIN
@@ -62,39 +70,39 @@ public class MonkeyActivityEvent extends MonkeyEvent {
     }
 
     /**
-     *
+     * 所谓实际执行事件的方法
      * @param iwm wires to current window manager 这里没有用
      * @param iam wires to current activity manager 这里用AMS
      * @param verbose a log switch log开关
-     * @return
+     * @return 成功、或者出错的整型码（并没有使用失败的错误码）
      */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        Intent intent = getEvent(); //获取Intent对象
-        if (verbose > 0) {
+        Intent intent = getEvent(); //先获取Intent对象
+        if (verbose > 0) { //根据日志等级，输出日志（标准输出流）
             Logger.out.println(":Switch: " + intent.toUri(0));
         }
 
         if (mAlarmTime != 0){
-            Bundle args = new Bundle();
-            args.putLong("alarmTime", mAlarmTime);
-            intent.putExtras(args);
+            Bundle args = new Bundle(); //创建Bundle对象，用于持有属性
+            args.putLong("alarmTime", mAlarmTime); //向Intent对象添加一个alarmTime
+            intent.putExtras(args); //在这为Intent设置此属性，传入创建的Bundle对象，可以看下这个Intent的alarmTime有啥用，估计AMS中会处理
         }
 
         try {
             iam.startActivityAsUserWithFeature(null, getPackageName(), null, intent, null, null,
-                    null, 0, 0, null, null, ActivityManager.getCurrentUser()); //依靠AMS系统服务切换Activity
+                    null, 0, 0, null, null, ActivityManager.getCurrentUser()); //依靠AMS系统服务切换Activity，这个startActivityAsUserWithFeature方法完成Activity的启动
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with activity manager!");
-            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION; //当远程服务出错时，返回注入事件失败的错误码
+            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION; //当远程AMS服务出错时，返回注入事件失败的错误码
         } catch (SecurityException e) {
             if (verbose > 0) {
                 Logger.out.println("** Permissions error starting activity "
                         + intent.toUri(0));
             }
-            return MonkeyEvent.INJECT_ERROR_SECURITY_EXCEPTION;
+            return MonkeyEvent.INJECT_ERROR_SECURITY_EXCEPTION; //表示因安全异常，导致的异常错误码
         }
-        return MonkeyEvent.INJECT_SUCCESS;
+        return MonkeyEvent.INJECT_SUCCESS; //表示注入事件成功（成功启动Activity）
     }
 
     /**

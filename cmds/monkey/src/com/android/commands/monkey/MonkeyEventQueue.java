@@ -22,14 +22,23 @@ import java.util.Random;
 /**
  * class for keeping a monkey event queue
  * 双向链表，存储的元素是MonkeyEvent
+ * 该双向链表的对象，只在两个对象中使用
+ * 1、MonkeySourceRandom
+ * 2、MonkeySourceScript
  */
 @SuppressWarnings("serial")
 public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
 
-    private Random mRandom; //持有Random对象
-    private long mThrottle; //持有间隔时间
-    private boolean mRandomizeThrottle; //持有随机间隔
+    private Random mRandom; //持有Random对象，用于生成随机间隔时间
+    private long mThrottle; //持有的事件停留间隔时间
+    private boolean mRandomizeThrottle; //持有的是否需要随机间隔
 
+    /**
+     * 创建双向链表对象的构造方法
+     * @param random 可以指定Random对象
+     * @param throttle 可以指定间隔时间
+     * @param randomizeThrottle 可以指定是否开启随机间隔
+     */
     public MonkeyEventQueue(Random random, long throttle, boolean randomizeThrottle) {
         super();
         mRandom = random;
@@ -37,6 +46,11 @@ public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
         mRandomizeThrottle = randomizeThrottle;
     }
 
+    /**
+     * 用于将事件添加到双向链表尾部的方法
+     * 不过我们新加了一个功能，要不要在它的尾部立即插入一个MonkeyThrottleEvent事件，它表示间隔时间
+     * @param e 表示事件对象（具体是由子类对象传递进来的）
+     */
     @Override
     public void addLast(MonkeyEvent e) {
         super.add(e);
