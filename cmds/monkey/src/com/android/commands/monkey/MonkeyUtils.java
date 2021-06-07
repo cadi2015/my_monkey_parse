@@ -23,7 +23,7 @@ import java.util.Set;
 
 /**
  * Misc utilities.
- * 第一次工具类使用abstract修饰，拽，牛逼
+ * 第一次见工具类使用abstract修饰，拽，牛逼
  */
 public abstract class MonkeyUtils {
 
@@ -58,11 +58,15 @@ public abstract class MonkeyUtils {
         private Set<String> mInvalidPackages = new HashSet<>(); //持有另外一个，用于持有无效包名的Set对象
 
         /**
-         * 私有构造方法，不允许通过构造方法创建对象，但是同一个类中的外部类可以，牛逼！思路清晰
+         * 私有构造方法，不允许通过构造方法创建对象，但是同一个类中的外部类可以，牛逼！思路清晰,所谓只在一个类中使用……经典
          */
         private PackageFilter() {
         }
 
+        /**
+         * 将某个Set对象中持有的所有元素，全部添加到mValidPackages集合中
+         * @param validPackages Set对象
+         */
         public void addValidPackages(Set<String> validPackages) {
             mValidPackages.addAll(validPackages);
         }
@@ -71,6 +75,10 @@ public abstract class MonkeyUtils {
             mInvalidPackages.addAll(invalidPackages);
         }
 
+        /**
+         * 当Set中持有的元素大于0时，说明存在有效的包名
+         * @return 返回是否存在有效包
+         */
         public boolean hasValidPackages() {
             return mValidPackages.size() > 0;
         }

@@ -104,7 +104,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     public static final int FACTOR_APPSWITCH    = 9;
     public static final int FACTOR_FLIP         = 10;
     public static final int FACTOR_ANYTHING     = 11;    //一共12个事件
-    public static final int FACTORZ_COUNT       = 12;    // should be last+1
+    public static final int FACTORZ_COUNT       = 12;    // should be last+1  使用常量，是因为Monkey持有了一个数组对象，而MonkeySourceRandom中也持有了一个数组对象，它俩的长度一致
 
     /**
      * 私有常量
@@ -176,13 +176,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         mFactors[FACTOR_APPSWITCH] = 2.0f;
         mFactors[FACTOR_FLIP] = 1.0f;
         // disbale permission by default
-        mFactors[FACTOR_PERMISSION] = 0.0f;
+        mFactors[FACTOR_PERMISSION] = 0.0f; //默认值为0.0
         mFactors[FACTOR_ANYTHING] = 13.0f;
         mFactors[FACTOR_PINCHZOOM] = 2.0f;
 
         mRandom = random;
-        mMainApps = MainApps;
-        mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle);//创建MonkeyEventQueue对象
+        mMainApps = MainApps; //将获取到主Activity的List赋值给mMainApps
+        mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle);//创建MonkeyEventQueue对象，双向链表，用于存储事件对象
         mPermissionUtil = new MonkeyPermissionUtil(); //创建MonkeyPermissionUtil对象
         mPermissionUtil.setTargetSystemPackages(permissionTargetSystem); //将permissionTargetSystem值设置到MonkeyPermissionUtil对象中
     }
@@ -190,7 +190,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     /**
      * Adjust the percentages (after applying user values) and then normalize to a 0..1 scale.
      *  检查与调整事件比例
-     *  返回值表示事件比例是否正确
+     *  返回值表示事件比例是否正确，true 表示正确
      */
     private boolean adjustEventFactors() {
         // go through all values and compute totals for user & default values
@@ -506,16 +506,20 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         mQ.addLast(e);
     }
 
+    /**
+     * 用于计算事件比例是否合理
+     * @return
+     */
     public boolean validate() {
         boolean ret = true;
         // only populate & dump permissions if enabled
-        if (mFactors[FACTOR_PERMISSION] != 0.0f) { //如果设置了PERMISSION事件才会走这里
+        if (mFactors[FACTOR_PERMISSION] != 0.0f) { //如果设置了PERMISSION事件才会走这里，注意这个FACTOR_PERMISSION，在MonkeySourceRandom中默认值为0
             ret &= mPermissionUtil.populatePermissionsMapping();
             if (ret && mVerbose >= 2) { //只有获取到权限与日志等级最高时
                 mPermissionUtil.dump(); //做输出更多日志
             }
         }
-        return ret & adjustEventFactors(); //开始调整事件比例，返回值
+        return ret & adjustEventFactors(); //开始调整事件比例，返回检查结果，通过ret与，两个boolean值必须都计算，且都为true
     }
 
     public void setVerbose(int verbose) {
@@ -527,7 +531,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      */
     public void generateActivity() {
         MonkeyActivityEvent e = new MonkeyActivityEvent(mMainApps.get(
-                mRandom.nextInt(mMainApps.size()))); //从持有的所有包中，随机选择一个ComponentName，创建一个MonkeyActivityEvent对象
+                mRandom.nextInt(mMainApps.size()))); //从持有的可用Activity中，随机选择一个ComponentName，创建一个MonkeyActivityEvent对象，随机范围是主Activity的数量，要是1个，那就是1个……
         mQ.addLast(e); //将事件添加到双向链表的尾部
     }
 

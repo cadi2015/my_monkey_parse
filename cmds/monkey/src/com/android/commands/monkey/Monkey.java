@@ -184,13 +184,13 @@ public class Monkey {
     private String mPkgBlacklistFile;
 
     /** Package allowlist file. */
-    private String mPkgWhitelistFile;
+    private String mPkgWhitelistFile; //用于持有白名单文件名
 
     /** Categories we are allowed to launch **/
     private ArrayList<String> mMainCategories = new ArrayList<String>(); //分类用的list对象
 
     /** Applications we can switch to. */
-    private ArrayList<ComponentName> mMainApps = new ArrayList<ComponentName>(); //存储组件名的list对象（app）
+    private ArrayList<ComponentName> mMainApps = new ArrayList<ComponentName>(); //存储组件名的list对象（app），这些都是被成功启动Activity的信息
 
     /** The delay between event inputs **/
     long mThrottle = 0; //事件的延迟时间
@@ -199,13 +199,13 @@ public class Monkey {
     boolean mRandomizeThrottle = false; //是否需要0-xx毫秒的随机延迟时间
 
     /** The number of iterations **/
-    int mCount = 1000;
+    int mCount = 1000; //默认的事件数量
 
     /** The random number seed **/
-    long mSeed = 0;
+    long mSeed = 0; //随机种子值
 
     /** The random number generator **/
-    Random mRandom = null;
+    Random mRandom = null; //持有的Random对象
 
     /** Dropped-event statistics **/
     long mDroppedKeyEvents = 0;
@@ -626,8 +626,8 @@ public class Monkey {
         Process.setArgV0("com.android.commands.monkey"); //修改monkey程序的进程名称
 
         Logger.err.println("args: " + Arrays.toString(args)); //向标准错误流，输出命令行参数信息
-        int resultCode = (new Monkey()).run(args); //创建Monkey对象,调用run（）方法，将数组对象（命令行参数）传进去
-        System.exit(resultCode); //退出虚拟机进程，返回退出状态码
+        int resultCode = (new Monkey()).run(args); //创建Monkey对象,调用run（）方法，将数组对象（命令行参数）传进去，退出状态码会保存在resultCode中
+        System.exit(resultCode); //退出虚拟机进程，返回退出状态码，进程结束
     }
 
     /**
@@ -638,42 +638,42 @@ public class Monkey {
      */
     private int run(String[] args) {
         // Super-early debugger wait
-        for (String s : args) { //遍历所有命令行参数
+        for (String s : args) { //遍历所有的命令行参数，目的是为了查找--wait-dbg
             if ("--wait-dbg".equals(s)) {
                 Debug.waitForDebugger(); //包含--wait-dbg参数时，执行Debugger操作
             }
         }
 
-        // Default values for some command-line options 命令行选项赋初始值（将命令行参数保存到内存中）
-        mVerbose = 0; //日志等级默认值为0
-        mCount = 1000; //次数默认值为0
-        mSeed = 0; //随机种子值为0
+        // Default values for some command-line options 为Monkey对象持有的命令行选项赋初始值（将命令行参数保存到内存中，Monkey对象中）
+        mVerbose = 0; //日志等级的默认值为0
+        mCount = 1000; //次数初始值更新为1000
+        mSeed = 0; //随机种子初始值更新为0
         mThrottle = 0; //延迟时间默认为0
 
         // prepare for command-line processing
-        mArgs = args; //由实例变量mArgs开始持有包含所有命令行参数，它是一个String数组对象
-        for (String a: args) {
+        mArgs = args; //由实例变量mArgs开始持有包含的所有命令行参数，它是一个String数组对象
+        for (String a: args) { //遍历所有命令行参数
             Logger.err.println(" arg: \"" + a + "\""); //遍历所有命令行参数，向标准错误流中输出
         }
-        mNextArg = 0; //用于指向某个命令行参数，默认指向第一个命令行参数
+        mNextArg = 0; //用于指向某个命令行参数，默认指向第一个命令行参数，保存的是数组的下标
 
-        // set a positive value, indicating none of the factors is provided yet
-        for (int i = 0; i < MonkeySourceRandom.FACTORZ_COUNT; i++) {
-            mFactors[i] = 1.0f; //为数组对象mFactors中的每个元素赋值为1.0f，下标0-11，全部赋值为1.0f
+        // set a positive value, indicating none of the factors is provided yet 数组赋初始值
+        for (int i = 0; i < MonkeySourceRandom.FACTORZ_COUNT; i++) { //mFactors数组一共12个元素，这里遍历所有元素
+            mFactors[i] = 1.0f; //为数组对象mFactors中的每个元素都赋值为1.0f，下标0-11
         }
 
-        if (!processOptions()) { //检查并处理所有的命令行参数
+        if (!processOptions()) { //处理所有的命令行参数，这是通过调用processOptions()函数，此时Monkey对象已经持有所有的命令行参数
             return -1; //如果命令行参数发生错误，返回退出状态码-1，这个退出状态码，shell可以拿到
         }
 
-        if (!loadPackageLists()) { //检查并处理文件中持久化的包名（白名单文件、黑名单文件）看来除了命令行指定，还可以指定文件
+        if (!loadPackageLists()) { //检查并处理文件中持久的包名（白名单文件、黑名单文件）看来除了命令行指定包名，还可以指定文件
             return -1;
         }
 
         // now set up additional data in preparation for launch 用于操作Launch……
-        if (mMainCategories.size() == 0) { //第一次会添加两个元素，都时Categoryies……
+        if (mMainCategories.size() == 0) { //第一次会添加两个元素，都是Categoryies需要使用的……
             mMainCategories.add(Intent.CATEGORY_LAUNCHER);
-            mMainCategories.add(Intent.CATEGORY_MONKEY);
+            mMainCategories.add(Intent.CATEGORY_MONKEY); //说明你可以自己写一个Category为Monkey的Activity供启动？
         }
 
         if (mSeed == 0) { //随机种子没有设置时，使用时间戳+当前对象的hashCode值相加得到一个新的随机种子值
@@ -686,64 +686,65 @@ public class Monkey {
             if (mMainCategories.size() != 0) {
                 Iterator<String> it = mMainCategories.iterator();
                 while (it.hasNext()) { //遍历ArrayList
-                    Logger.out.println(":IncludeCategory: " + it.next()); //输出日志
+                    Logger.out.println(":IncludeCategory: " + it.next()); //打印包含的主要Category
                 }
             }
         }
 
-        if (!checkInternalConfiguration()) { //目前还没有实现
+        if (!checkInternalConfiguration()) { //目前还没有实现这个功能，预留的方法
             return -2; //内部配置出错，会返回-2
         }
 
-        if (!getSystemInterfaces()) { //检查并初始化系统服务，这里非常重要，全依赖系统服务的远程Binder，完成工作呢
+        if (!getSystemInterfaces()) { //检查并初始化系统服务，这里非常重要，Monkey程序依赖系统服务的远程Binder，完成工作
             return -3; //系统服务出错，会返回-3
         }
 
-        if (!getMainApps()) {
-            return -4; //主要包出错，会返回-4
+        if (!getMainApps()) { //查找可启动的主Activity
+            return -4; //没有找到可用的主Activity，返回-4
         }
 
         mRandom = new Random(mSeed); //创建Random对象……随机种子传给它,伪随机……
 
-        //初始化Monkey对象持有的mEventSource
-        if (mScriptFileNames != null && mScriptFileNames.size() == 1) { //只有指定1个脚本文件时
+        //初始化Monkey对象持有的mEventSource，注意会优先走脚本文件、然后是网络、最后才是命令行的方式
+
+        if (mScriptFileNames != null && mScriptFileNames.size() == 1) { //当指定1个脚本文件时，会走这里
             // script mode, ignore other options
             mEventSource = new MonkeySourceScript(mRandom, mScriptFileNames.get(0), mThrottle,
-                    mRandomizeThrottle, mProfileWaitTime, mDeviceSleepTime); //创建MonkeySourceScript对象
-            mEventSource.setVerbose(mVerbose); //设置MonkeySourceScript的监控等级
+                    mRandomizeThrottle, mProfileWaitTime, mDeviceSleepTime); //创建MonkeySourceScript对象，mEventSource指向此对象
+            mEventSource.setVerbose(mVerbose); //设置MonkeySourceScript的监控等级，同Monkey对象持有的mVerbose保持一致
 
             mCountEvents = false; //无需计算事件的次数
-        } else if (mScriptFileNames != null && mScriptFileNames.size() > 1) { //当指定多个脚本文件时
-            if (mSetupFileName != null) { //已经初始化脚本文件
-                mEventSource = new MonkeySourceRandomScript(mSetupFileName,
+        } else if (mScriptFileNames != null && mScriptFileNames.size() > 1) { //当指定多个脚本文件时，会走这里
+            if (mSetupFileName != null) { //如果指定了初始化脚本文件，通过--setup选项参数可指定
+                mEventSource = new MonkeySourceRandomScript(mSetupFileName, //可见第一个参数就是mSetupFileName文件名
                         mScriptFileNames, mThrottle, mRandomizeThrottle, mRandom,
-                        mProfileWaitTime, mDeviceSleepTime, mRandomizeScript);
-                mCount++; //创建一个MonkeySourceRandomScript对象，猜测可以用来选择一个脚本文件，抽空再看这里的代码，这里为何mCount需要+1，
-            } else { //没有初始化脚本的情况，此时mSetupFileName为null
+                        mProfileWaitTime, mDeviceSleepTime, mRandomizeScript);//创建一个MonkeySourceRandomScript对象，可以用来选择多个脚本文件中的一个
+                mCount++; //抽空再看这里的代码，这里为何mCount需要+1，
+            } else { //没有设置--setup的初始化脚本文件
                 mEventSource = new MonkeySourceRandomScript(mScriptFileNames,
                         mThrottle, mRandomizeThrottle, mRandom,
                         mProfileWaitTime, mDeviceSleepTime, mRandomizeScript); //同样创建一个MonkeySourceRandomScript
             }
             mEventSource.setVerbose(mVerbose); //设置事件来源的日志等级（保持与Monkey中一样的等级）
             mCountEvents = false; //无需计算事件数量
-        } else if (mServerPort != -1) { //TCP……，基于网络
+        } else if (mServerPort != -1) { //TCP……，基于网络，mServerPort指定了一个端口
             try {
-                mEventSource = new MonkeySourceNetwork(mServerPort); //创建MonkeySourceNetwork对象
+                mEventSource = new MonkeySourceNetwork(mServerPort); //创建MonkeySourceNetwork对象，事件源再次改变
             } catch (IOException e) {
-                Logger.out.println("Error binding to network socket.");
-                return -5;
+                Logger.out.println("Error binding to network socket."); //表示无法绑定某个端口
+                return -5; //返回退出状态为-5
             }
-            mCount = Integer.MAX_VALUE; //直接将数量设置为最大值
-        } else { //没有脚本文件、没有基于网络、当基于命令行参数时，走这里
+            mCount = Integer.MAX_VALUE; //直接将事件数量设置为最大值
+        } else { //没有脚本文件、没有基于网络、当基于命令行参数时，走这里，它的优先级最低
             // random source by default
             if (mVerbose >= 2) { // check seeding performance
                 Logger.out.println("// Seeded: " + mSeed); //向标准输出流输出随机种子数，前提是日志等级大于2
             }
             mEventSource = new MonkeySourceRandom(mRandom, mMainApps,
-                    mThrottle, mRandomizeThrottle, mPermissionTargetSystem); //创建MonkeySourceRandom对象，事件源最重要的对象
+                    mThrottle, mRandomizeThrottle, mPermissionTargetSystem); //创建MonkeySourceRandom对象，看见了吗，将获取到的可用的Activity组件对象mMainApps，传了进去
             mEventSource.setVerbose(mVerbose); //将命令行中解析的日志等级同样赋值给MonkeySourceRandom对象
             // set any of the factors that has been set
-            // 遍历MonkeySourceRandom设置的12个事件
+            // 遍历Monkey对象持有的数组对象mFactors，如果发现元素值是负数，说明是用户设置的，就把该值赋值给MonkeySourceRandom对象持有的数组对象mFactors（同名，尴尬）
             for (int i = 0; i < MonkeySourceRandom.FACTORZ_COUNT; i++) {
                 if (mFactors[i] <= 0.0f) { //遍历Monkey对象持有的数组对象mFactors
                     ((MonkeySourceRandom) mEventSource).setFactors(i, mFactors[i]); //将命令行中的指定的事件存放到MonkeySourceRandom对象持有的数组对象中
@@ -755,7 +756,7 @@ public class Monkey {
             ((MonkeySourceRandom) mEventSource).generateActivity(); //生成Activity事件（首先启动Activity，这个没毛病）
         }
 
-        // validate source generator 检查事件比例
+        // validate source generator 检查事件比例，如果使用的是MoneySourceRandom，则这里会走MonkeySourceRandom的计算规则（此规则定义在接口MonkeyEventSource，不同的事件源可以修改计算规则）
         if (!mEventSource.validate()) {
             return -5; //事件比例错误，直接返回退出状态码为-5
         }
@@ -856,30 +857,32 @@ public class Monkey {
 
     /**
      * Process the command-line options
-     * 处理命令行参数，将命令行参数统统保存到内存中（由当前Monkey对象持有的实例变量负责保存）
+     * 处理命令行参数的方法，将命令行参数全部保存到Monkey对象持有的实例变量中，即内存中（由当前Monkey对象持有的实例变量负责保存）
+     * 忽略了一点，Java的数组对象表示的命令行参数，包括入口类的名字吗？
      * @return Returns true if options were parsed with no apparent errors. 解析命令行参数的结果，没有错误时，返回true
      */
     private boolean processOptions() {
         // quick (throwaway) check for unadorned command
-        if (mArgs.length < 1) { //命令行参数少于1个时
-            showUsage(); //告知用户输出的参数
-            return false; //返回值false 表示有错误
+        //mArgs持有着一个数组对象，这个数组对象的每个元素都是命令行参数
+        if (mArgs.length < 1) { //检查命令行参数，如果命令行参数少于1个
+            showUsage(); //向屏幕输出monkey命令怎么使用
+            return false; //返回值false 表示解析命令行参数有错误
         }
 
         try {
-            String opt; //临时局部变量，用于存储某个命令行参数
+            String opt; //临时局部变量，用于存储某个命令行参数（选项参数）
             Set<String> validPackages = new HashSet<>(); //创建一个Set对象，用于临时保存有效的包名
             while ((opt = nextOption()) != null) {
                 if (opt.equals("-s")) { //当单个命令行参数为-s时
-                    mSeed = nextOptionLong("Seed"); //此Seed仅为提示……，获取下个命令行参数，同时命令行参数下标+1
+                    mSeed = nextOptionLong("Seed"); //此Seed仅用作提示……牛逼，此时获取到的随机种子值，会交给Monkey对象持有的mSeed负责保存
                 } else if (opt.equals("-p")) {
                     validPackages.add(nextOptionData()); //可以看到-p参数后面的包名，会放到一个Set集合中，天生去重
                 } else if (opt.equals("-c")) {
                     mMainCategories.add(nextOptionData()); //-c参数后面的参数放到了一个list中
                 } else if (opt.equals("-v")) {
                     mVerbose += 1;// 一个-v参数，为其+1
-                } else if (opt.equals("--ignore-crashes")) {
-                    mIgnoreCrashes = true;
+                } else if (opt.equals("--ignore-crashes")) { //如果解析到这个选项参数
+                    mIgnoreCrashes = true;  //更新Monkey对象持有的实例变量值
                 } else if (opt.equals("--ignore-timeouts")) {
                     mIgnoreTimeouts = true;
                 } else if (opt.equals("--ignore-security-exceptions")) {
@@ -895,8 +898,8 @@ public class Monkey {
                 } else if (opt.equals("--match-description")) {
                     mMatchDescription = nextOptionData();
                 } else if (opt.equals("--pct-touch")) { //触摸事件比例
-                    int i = MonkeySourceRandom.FACTOR_TOUCH;
-                    mFactors[i] = -nextOptionLong("touch events percentage"); //注意这里采用的负值，因为……没有通过命令行传入的值，默认值都是0.0
+                    int i = MonkeySourceRandom.FACTOR_TOUCH; //获取FACTOR_TOUCH事件在数组中存储的下标
+                    mFactors[i] = -nextOptionLong("touch events percentage"); //注意这里使用负值，因为……没有通过命令行传入的值，默认值都是1.0，这是为了方便后面区分用户配置的参数
                 } else if (opt.equals("--pct-motion")) {
                     int i = MonkeySourceRandom.FACTOR_MOTION;
                     mFactors[i] = -nextOptionLong("motion events percentage"); //为何解析完，存储一个负数呢？
@@ -981,18 +984,18 @@ public class Monkey {
             return false;
         }
 
-        // If a server port hasn't been specified, we need to specify
+        // If a server port hasn't been specified, we need to specify 没有指定TCP方式，就必须指定数量
         // a count
-        if (mServerPort == -1) { //不使用TCP远程命令时，会走这里
-            String countStr = nextArg();
+        if (mServerPort == -1) { //不使用TCP远程命令时，会走这里，强行处理事件数
+            String countStr = nextArg(); //获取事件数
             if (countStr == null) {
-                Logger.err.println("** Error: Count not specified"); //看到你了
+                Logger.err.println("** Error: Count not specified"); //看到你了，说明没有指定事件次数
                 showUsage();
                 return false;
             }
 
             try {
-                mCount = Integer.parseInt(countStr); //最后解析执行次数……执行次数必须放到最后……
+                mCount = Integer.parseInt(countStr); //最后解析执行次数……执行次数必须放到最后……不然会解析失败……
             } catch (NumberFormatException e) {
                 Logger.err.println("** Error: Count is not a number: \"" + countStr + "\"");
                 showUsage();
@@ -1038,14 +1041,14 @@ public class Monkey {
 
     /**
      * Load package denylist or allowlist (if specified).
-     * 加载拒绝的包名与同意的包名，如果指定了
+     * 加载拒绝的包名与同意的包名，如果指定了文件
      * @return Returns false if any error occurs. //如果发生任何错误，则会返回false
      */
     private boolean loadPackageLists() {
         if (((mPkgWhitelistFile != null) || (MonkeyUtils.getPackageFilter().hasValidPackages()))
-                && (mPkgBlacklistFile != null)) { //如果通过命令行指定了白名单的文件名，获取设置的有效的包名，且黑名单不为空
+                && (mPkgBlacklistFile != null)) { //如果通过命令行已经指定了白名单的文件名，且又可以获取设置的有效的包名，且黑名单不为空
             Logger.err.println("** Error: you can not specify a package blacklist "
-                    + "together with a whitelist or individual packages (via -p)."); //告知用户你不能再指定黑名单列表了
+                    + "together with a whitelist or individual packages (via -p)."); //告知用户你不能再指定黑名单列表
             return false;
         }
         Set<String> validPackages = new HashSet<>(); //临时创建一个HashSet对象，用于保存文件中的包名
@@ -1075,15 +1078,15 @@ public class Monkey {
     /**
      * Attach to the required system interfaces.
      *
-     * @return Returns true if all system interfaces were available.
+     * @return Returns true if all system interfaces were available. true表示所有的系统服务都可以获取
      * 初始化系统服务
      */
     private boolean getSystemInterfaces() {
         mAm = ActivityManager.getService(); //获取AMS系统服务
-        if (mAm == null) {
+        if (mAm == null) { //如果没有获取到AMS系统服务
             Logger.err.println("** Error: Unable to connect to activity manager; is the system "
                     + "running?"); //告知无法获取AMS服务，反问你系统到底有没有运行
-            return false;
+            return false; //方法结束，直接返回false
         }
 
         mWm = IWindowManager.Stub.asInterface(ServiceManager.getService("window")); //获取WMS系统服务
@@ -1101,67 +1104,68 @@ public class Monkey {
         }
 
         try {
-            mAm.setActivityController(new ActivityController(), true);//向AMS传入一个Binder对象，AMS通过此Binder对象，与Monkey进程通信
-            mNetworkMonitor.register(mAm); //将AMS服务注册到一个用于监听的网络Binder中
+            mAm.setActivityController(new ActivityController(), true);//向AMS注册一个Binder对象，AMS通过此Binder对象，可以与Monkey进程通信
+            mNetworkMonitor.register(mAm); //将获取到的AMS服务注册到一个用于监听网络Binder中
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with activity manager!"); //AMS服务挂了……
             return false;
         }
 
-        return true;
+        return true; //返回true，说明获取到了所有系统服务
     }
 
     /**
      * Using the restrictions provided (categories & packages), generate a list
      * of activities that we can actually switch to.
-     * 这里不仅检查App是否存在，还构建出了该App对应的Activity
+     * 这里不仅检查App是否存在，还构建出了该App对应的Launcher Activity
      * @return Returns true if it could successfully build a list of target
-     *         activities
+     *         activities //返回true，表示获取到对应包的Launcher Activity
      */
     private boolean getMainApps() {
         try {
-            final int N = mMainCategories.size();
-            for (int i = 0; i < N; i++) {
-                Intent intent = new Intent(Intent.ACTION_MAIN);
-                String category = mMainCategories.get(i);
-                if (category.length() > 0) {
+            final int N = mMainCategories.size(); //获取Category的数量，默认是两个，通过-c的命令行参数可以添加
+            for (int i = 0; i < N; i++) { //遍历所有的Category
+                Intent intent = new Intent(Intent.ACTION_MAIN); //创建Intent对象
+                String category = mMainCategories.get(i); //获取List中的一个Category
+                if (category.length() > 0) { //如果拿到的Category字符串大于0
                     intent.addCategory(category); //为Intent对象设置Category
                 }
                 List<ResolveInfo> mainApps = mPm.queryIntentActivities(intent, null, 0,
-                        ActivityManager.getCurrentUser()).getList(); //查询可以使用Intent的Activity，坑爹……
-                if (mainApps == null || mainApps.size() == 0) {
-                    Logger.err.println("// Warning: no activities found for category " + category);
-                    continue;
+                        ActivityManager.getCurrentUser()).getList(); //使用PMS系统服务的查询queryIntentActivities方法，用于查询所有当前用户可以使用的主Activity，只有App在Manifest文件中注册的，才能被查找到
+                //返回的是一个List对象，元素为ResolveInfo对象
+                if (mainApps == null || mainApps.size() == 0) { //如果没有获取可以使用的主Activity
+                    Logger.err.println("// Warning: no activities found for category " + category); //标准错误流中输出日志
+                    continue; //当前循环结束
                 }
                 if (mVerbose >= 2) { // very verbose
                     Logger.out.println("// Selecting main activities from category " + category);
-                }
-                final int NA = mainApps.size();
-                for (int a = 0; a < NA; a++) {
-                    ResolveInfo r = mainApps.get(a);
-                    String packageName = r.activityInfo.applicationInfo.packageName;
-                    if (MonkeyUtils.getPackageFilter().checkEnteringPackage(packageName)) {
+                } //这里说明获取到可用的Activiy了，会输出一个日志
+                final int NA = mainApps.size(); // 读取获取到的主Activity数量
+                for (int a = 0; a < NA; a++) { //遍历所有的ResolveInfo，注意一个主Activity对应一个ResolveInfo
+                    ResolveInfo r = mainApps.get(a); //先去除其中一个ResoloveInfo对象
+                    String packageName = r.activityInfo.applicationInfo.packageName; //使用ActivityInfo对象，然后再获取ApplicationInfo对象，然后再拿到对应Activity的包名
+                    if (MonkeyUtils.getPackageFilter().checkEnteringPackage(packageName)) { //检查包名是否是可以启动的主activity
                         if (mVerbose >= 2) { // very verbose
                             Logger.out.println("//   + Using main activity " + r.activityInfo.name
                                     + " (from package " + packageName + ")");
-                        }
-                        mMainApps.add(new ComponentName(packageName, r.activityInfo.name));
-                    } else {
+                        } //如果日志等级大于等于2，标准输出流中输出日志
+                        mMainApps.add(new ComponentName(packageName, r.activityInfo.name)); //创建一个ComponentName对象，其中记录了包名和Activity名，然后记录到一个List中
+                    } else { //如果不是可以进入的包名
                         if (mVerbose >= 3) { // very very verbose
                             Logger.out.println("//   - NOT USING main activity "
-                                    + r.activityInfo.name + " (from package " + packageName + ")");
+                                    + r.activityInfo.name + " (from package " + packageName + ")"); //标记未使用的主Activity信息
                         }
                     }
                 }
             }
         } catch (RemoteException e) {
-            Logger.err.println("** Failed talking with package manager!"); //PMS系统服务出错
-            return false;
+            Logger.err.println("** Failed talking with package manager!"); //PMS系统服务出错，走这里
+            return false; //说明没有获取到可以启动的主Activity
         }
 
         if (mMainApps.size() == 0) {
-            Logger.out.println("** No activities found to run, monkey aborted."); //没有找到Activity，Monkey终止
-            return false;
+            Logger.out.println("** No activities found to run,  monkey aborted."); //没有找到可用的主Activity
+            return false;  //返回false，会造成Monkey程序结束
         }
 
         return true;
@@ -1443,24 +1447,24 @@ public class Monkey {
      * @return Returns the option string, or null if there are no more options.
      */
     private String nextOption() {
-        if (mNextArg >= mArgs.length) { //检查下标是否大于等于命令行参数的总长度
-            return null; //返回null，说明没有参数了
+        if (mNextArg >= mArgs.length) { //检查下标是否大于等于命令行参数的总长度，mNextArg的初始值是0
+            return null; //返回null，说明没有参数可以可以使用了
         }
-        String arg = mArgs[mNextArg]; //获取指定的一个命令行参数
-        if (!arg.startsWith("-")) { //如果参数不是以-开头的，则返回null
+        String arg = mArgs[mNextArg]; //获取指定的一个命令行参数（从第一个获取）
+        if (!arg.startsWith("-")) { //如果参数不是以-开头的，直接返回null，看来monkey的命令行参数已经规定死使用选项参数了
             return null;
         }
-        mNextArg++;  //下标值+1
-        if (arg.equals("--")) { //如果命令行参数的等于--
+        mNextArg++;  //下标值+1，因为-参数的后面跟着是选项参数的值，看来接下来要处理选项参数的值了（应该是在别的方法中处理）
+        if (arg.equals("--")) { //如果命令行参数的只等于--，也不行
             return null; //返回null
         }
         if (arg.length() > 1 && arg.charAt(1) != '-') { //单个命令行参数的长度大于1、且第二个字符不等于-时
-            if (arg.length() > 2) { //单个命令行参数大于2时
+            if (arg.length() > 2) { //单个命令行参数大于2时,貌似是这样的参数-500
                 mCurArgData = arg.substring(2); //截取前两个字符，并赋值给mCurArgData
-                return arg.substring(0, 2); //返回前两个字符……
-            } else { //单个命令行参数小于等于2时
+                return arg.substring(0, 2); //返回前两个字符…… -s cao,即会返回-s
+            } else { //单个命令行参数出版大于1，且第二个参数为-，如果单纯是一个-的参数呢
                 mCurArgData = null;
-                return arg; //直接返回单个命令行参数
+                return arg; //直接返回单个命令行参数，即--ignore-crashes，这样的参数,会被返回
             }
         }
         mCurArgData = null;
@@ -1472,20 +1476,20 @@ public class Monkey {
 
     /**
      * Return the next data associated with the current option.
-     *
-     * @return Returns the data string, or null of there are no more arguments.
+     * 用于返回 选项参数的值的方法
+     * @return Returns the data string, or null of there are no more arguments. 返回字符串参数，哈哈
      */
     private String nextOptionData() {
         if (mCurArgData != null) {
-            return mCurArgData;
+            return mCurArgData; //当 -s 50，这样的参数时，mCurargData为null，所以不会走这里
         }
-        if (mNextArg >= mArgs.length) {
+        if (mNextArg >= mArgs.length) { //说明已经解析到最后一个参数了
             return null;
         }
-        String data = mArgs[mNextArg];
+        String data = mArgs[mNextArg]; //因为mNextArg在解析选项参数时，已经+过1了，所以这里刚好获取到选项参数值
         Logger.err.println("data=\"" + data + "\""); //data="500"
-        mNextArg++;
-        return data;
+        mNextArg++; //继续获取下一个选项参数
+        return data; //返回选项参数值
     }
 
     /**
