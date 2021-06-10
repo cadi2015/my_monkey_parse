@@ -46,6 +46,7 @@ import java.util.Map;
 /**
  * Utility class that enables Monkey to perform view introspection when issued Monkey Network
  * Script commands over the network.
+ * 这个里面作者已经使用UiAutomation了……
  */
 public class MonkeySourceNetworkViews {
 
@@ -55,7 +56,7 @@ public class MonkeySourceNetworkViews {
             IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
     private static Map<String, Class<?>> sClassMap = new HashMap<String, Class<?>>();
 
-    private static final String HANDLER_THREAD_NAME = "UiAutomationHandlerThread";
+    private static final String HANDLER_THREAD_NAME = "UiAutomationHandlerThread"; //表示拥有Looper的线程名字
 
     private static final String REMOTE_ERROR =
             "Unable to retrieve application info from PackageManager";
@@ -92,7 +93,7 @@ public class MonkeySourceNetworkViews {
         COMMAND_MAP.put("getaccessibilityids", new GetAccessibilityIds());
     }
 
-    private static final HandlerThread sHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
+    private static final HandlerThread sHandlerThread = new HandlerThread(HANDLER_THREAD_NAME); //类必须持有一个带有Looper的HandlerThread对象
 
     /**
      * Registers the event listener for AccessibilityEvents.
@@ -102,9 +103,9 @@ public class MonkeySourceNetworkViews {
     public static void setup() {
         sHandlerThread.setDaemon(true);
         sHandlerThread.start();
-        sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(),
-                new UiAutomationConnection());
-        sUiTestAutomationBridge.connect();
+        sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(), //将Looper传进去即可
+                new UiAutomationConnection()); //原来自己创建一个UiAutomationConnection对象即可
+        sUiTestAutomationBridge.connect(); //与AssiblityService建立连接
     }
 
     public static void teardown() {
@@ -161,18 +162,18 @@ public class MonkeySourceNetworkViews {
         //listviews
         public MonkeyCommandReturn translateCommand(List<String> command,
                                                     CommandQueue queue) {
-            AccessibilityNodeInfo node = sUiTestAutomationBridge.getRootInActiveWindow();
+            AccessibilityNodeInfo node = sUiTestAutomationBridge.getRootInActiveWindow(); //View树的根节点对象
             /* Occasionally the API will generate an event with no source, which is essentially the
              * same as it generating no event at all */
             if (node == null) {
                 return new MonkeyCommandReturn(false, NO_ACCESSIBILITY_EVENT);
             }
-            String packageName = node.getPackageName().toString();
+            String packageName = node.getPackageName().toString(); //获取View树所在的包名
             try{
                 Class<?> klass;
                 ApplicationInfo appInfo = sPm.getApplicationInfo(packageName, 0,
-                        ActivityManager.getCurrentUser());
-                klass = getIdClass(packageName, appInfo.sourceDir);
+                        ActivityManager.getCurrentUser()); //通过PMS获取应用的细腻些
+                klass = getIdClass(packageName, appInfo.sourceDir); //获得一个类，通过包名和ApplicationInfo的sourceDir可以获得一个生命类呢？
                 StringBuilder fieldBuilder = new StringBuilder();
                 Field[] fields = klass.getFields();
                 for (Field field : fields) {
@@ -212,7 +213,7 @@ public class MonkeySourceNetworkViews {
                     }
                 } else if (idType.equals("accessibilityids")) {
                     try {
-                        node = getNodeByAccessibilityIds(command.get(2), command.get(3));
+                        node = getNodeByAccessibilityIds(command.get(2), command.get(3)); //通过id获取某个控件
                         viewQuery = command.get(4);
                         args = command.subList(5, command.size());
                     } catch (NumberFormatException e) {
@@ -251,6 +252,7 @@ public class MonkeySourceNetworkViews {
      * A command that returns the accessibility ids of the views that contain the given text.
      * It takes a string of text and returns the accessibility ids of the nodes that contain the
      * text as a list of integers separated by spaces.
+     * 靠，首页指定模式的思路已经有了
      */
     public static class GetViewsWithTextCommand implements MonkeyCommand {
         // getviewswithtext [text]

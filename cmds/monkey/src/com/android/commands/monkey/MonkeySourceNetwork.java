@@ -45,13 +45,13 @@ import java.util.StringTokenizer;
 
 /**
  * An Event source for getting Monkey Network Script commands from
- * over the network.
+ * over the network. 表示从Socket提取事件的事件来演
  */
 public class MonkeySourceNetwork implements MonkeyEventSource {
     private static final String TAG = "MonkeyStub";
     /* The version of the monkey network protocol */
     public static final int MONKEY_NETWORK_VERSION = 2;
-    private static DeferredReturn deferredReturn;
+    private static DeferredReturn deferredReturn; //MonkeySourceNetwork类持有的DeferredReturn对象
 
     /**
      * ReturnValue from the MonkeyCommand that indicates whether the
@@ -431,42 +431,42 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Force the device to wake up.
-     *
+     * 强制手机唤醒^
      * @return true if woken up OK.
      */
     private static final boolean wake() {
         IPowerManager pm =
-                IPowerManager.Stub.asInterface(ServiceManager.getService(Context.POWER_SERVICE));
+                IPowerManager.Stub.asInterface(ServiceManager.getService(Context.POWER_SERVICE));//先获取PowerManagerSystem服务
         try {
             pm.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_UNKNOWN,
-                    "Monkey", null);
+                    "Monkey", null); //调用它的wakeup（）接口，卧槽尼玛，这个方法在哪调用呀？起码得等系统服务回应呀，应该会阻塞当前线程
         } catch (RemoteException e) {
-            Log.e(TAG, "Got remote exception", e);
+            Log.e(TAG, "Got remote exception", e); //远程服务出错，会走这里
             return false;
         }
         return true;
     }
 
     // This maps from command names to command implementations.
-    private static final Map<String, MonkeyCommand> COMMAND_MAP = new HashMap<String, MonkeyCommand>();
+    private static final Map<String, MonkeyCommand> COMMAND_MAP = new HashMap<String, MonkeyCommand>(); //MonkeySourceNetwork类持有的Ma对象，
 
     static {
-        // Add in all the commands we support
-        COMMAND_MAP.put("flip", new FlipCommand());
-        COMMAND_MAP.put("touch", new TouchCommand());
-        COMMAND_MAP.put("trackball", new TrackballCommand());
-        COMMAND_MAP.put("key", new KeyCommand());
-        COMMAND_MAP.put("sleep", new SleepCommand());
-        COMMAND_MAP.put("wake", new WakeCommand());
-        COMMAND_MAP.put("tap", new TapCommand());
-        COMMAND_MAP.put("press", new PressCommand());
-        COMMAND_MAP.put("type", new TypeCommand());
-        COMMAND_MAP.put("listvar", new MonkeySourceNetworkVars.ListVarCommand());
-        COMMAND_MAP.put("getvar", new MonkeySourceNetworkVars.GetVarCommand());
-        COMMAND_MAP.put("listviews", new MonkeySourceNetworkViews.ListViewsCommand());
-        COMMAND_MAP.put("queryview", new MonkeySourceNetworkViews.QueryViewCommand());
-        COMMAND_MAP.put("getrootview", new MonkeySourceNetworkViews.GetRootViewCommand());
-        COMMAND_MAP.put("getviewswithtext",
+        // Add in all the commands we support //初始化支持的命令
+        COMMAND_MAP.put("flip", new FlipCommand()); //flip命令
+        COMMAND_MAP.put("touch", new TouchCommand()); //touch命令
+        COMMAND_MAP.put("trackball", new TrackballCommand()); //trackball事件
+        COMMAND_MAP.put("key", new KeyCommand()); //key事件
+        COMMAND_MAP.put("sleep", new SleepCommand()); //sleep事件
+        COMMAND_MAP.put("wake", new WakeCommand()); //wake事件
+        COMMAND_MAP.put("tap", new TapCommand()); //tap事件
+        COMMAND_MAP.put("press", new PressCommand()); //press事件
+        COMMAND_MAP.put("type", new TypeCommand()); //type事件
+        COMMAND_MAP.put("listvar", new MonkeySourceNetworkVars.ListVarCommand()); //listvar事件
+        COMMAND_MAP.put("getvar", new MonkeySourceNetworkVars.GetVarCommand()); //getvar事件
+        COMMAND_MAP.put("listviews", new MonkeySourceNetworkViews.ListViewsCommand()); //listviews事件
+        COMMAND_MAP.put("queryview", new MonkeySourceNetworkViews.QueryViewCommand()); //queryview事件
+        COMMAND_MAP.put("getrootview", new MonkeySourceNetworkViews.GetRootViewCommand()); //getrootview事件
+        COMMAND_MAP.put("getviewswithtext", //getviewswitchtext是按
                         new MonkeySourceNetworkViews.GetViewsWithTextCommand());
         COMMAND_MAP.put("deferreturn", new DeferReturnCommand());
     }
@@ -517,8 +517,8 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     private static class DeferredReturn {
         public static final int ON_WINDOW_STATE_CHANGE = 1;
 
-        private int event;
-        private MonkeyCommandReturn deferredReturn;
+        private int event; //持有的事件类型
+        private MonkeyCommandReturn deferredReturn; //持有的可返回的MonkeyCommandReturn对象
         private long timeout;
 
         public DeferredReturn(int event, MonkeyCommandReturn deferredReturn, long timeout) {
@@ -550,29 +550,34 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     private BufferedReader input;
     private PrintWriter output;
-    private boolean started = false;
+    private boolean started = false; //表示监听端口是否开始，默认值为没有开始
 
-    private ServerSocket serverSocket;
-    private Socket clientSocket;
+    private ServerSocket serverSocket; //持有的ServerSocket
+    private Socket clientSocket; //Socket对象，表示客户端进程
 
+    /**
+     *
+     * @param port 表示需要监听的端口
+     * @throws IOException
+     */
     public MonkeySourceNetwork(int port) throws IOException {
         // Only bind this to local host.  This means that you can only
-        // talk to the monkey locally, or though adb port forwarding.
+        // talk to the monkey locally, or though adb port forwarding. //只能绑定本地主机，两种使用方法，monkey在本地，或者通过adb的端口转发
         serverSocket = new ServerSocket(port,
                                         0, // default backlog
-                                        InetAddress.getLocalHost());
+                                        InetAddress.getLocalHost()); //创建ServerSocket对象
     }
 
     /**
      * Start a network server listening on the specified port.  The
      * network protocol is a line oriented protocol, where each line
-     * is a different command that can be run.
+     * is a different command that can be run. //开始监听在指定的端口中，这个网络协议是命令行中的规定的协议，每行内容代表不同的命令，然后就可以运行了
      *
-     * @param port the port to listen on
+     * @param port the port to listen on 表示需要进程监听的端口
      */
     private void startServer() throws IOException {
-        clientSocket = serverSocket.accept();
-        // At this point, we have a client connected.
+        clientSocket = serverSocket.accept(); //开始监听端口
+        // At this point, we have a client connected.  这里的关键是，我们必须有一个客户端连接
         // Attach the accessibility listeners so that we can start receiving
         // view events. Do this before wake so we can catch the wake event
         // if possible.
@@ -683,7 +688,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
 
     public MonkeyEvent getNextEvent() {
-        if (!started) {
+        if (!started) { //当没有开始的时候（第一次）
             try {
                 startServer();
             } catch (IOException e) {

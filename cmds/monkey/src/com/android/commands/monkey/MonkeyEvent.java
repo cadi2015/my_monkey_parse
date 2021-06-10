@@ -25,7 +25,7 @@ import android.view.IWindowManager;
  * 程序中描述了8个事件，不过对于用户来说是不一样的……
  */
 public abstract class MonkeyEvent {
-    protected int eventType;
+    protected int eventType; //每个事件对象持有的事件类型，表示事件类型
     public static final int EVENT_TYPE_KEY = 0; //此常量值表示KEY事件，第一个
     public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件，第二个
     public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL，第三个

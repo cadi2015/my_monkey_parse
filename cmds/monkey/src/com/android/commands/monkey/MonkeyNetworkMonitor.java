@@ -29,6 +29,7 @@ import android.os.UserHandle;
 
 /**
  * Class for monitoring network connectivity during monkey runs.
+ * 看下IIntentReceiver有哪些功能
  */
 public class MonkeyNetworkMonitor extends IIntentReceiver.Stub {
     private static final boolean LDEBUG = false;
@@ -86,7 +87,7 @@ public class MonkeyNetworkMonitor extends IIntentReceiver.Stub {
     public void register(IActivityManager am) throws RemoteException {
         if (LDEBUG) Logger.out.println("registering Receiver");
         am.registerReceiverWithFeature(null, null, null, this, filter, null, UserHandle.USER_ALL,
-                0); //将此Binder对象，注册到AMS中，当网络状态出现变化，可以知道此Binder，我靠，没想到Monkey有两个Binder与AMS进行通信
+                0); //将此Binder对象，注册到AMS中，当网络状态出现变化，可以通知到此Binder对象，我靠，没想到Monkey的本地有两个Binder与AMS进行通信
     }
 
     public void unregister(IActivityManager am) throws RemoteException {

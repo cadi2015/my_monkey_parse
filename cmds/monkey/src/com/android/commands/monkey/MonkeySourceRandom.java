@@ -89,8 +89,8 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * 公开常量
-     * 表示某个事件的下标值
-     * 最后一个FACTORZ_COUNT表示事件数量
+     * 表示某个事件所占比例的下标值
+     * 最后一个FACTORZ_COUNT表示可以调节的事件比例数量
      */
     public static final int FACTOR_TOUCH        = 0; //触摸事件的下标
     public static final int FACTOR_MOTION       = 1; //
@@ -123,13 +123,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     private float[] mFactors = new float[FACTORZ_COUNT]; //MonkeySourceRandom对象持有一个数组对象
     private List<ComponentName> mMainApps; //持有的List对象，用于保存需要操作的App信息
     private int mEventCount = 0;  //total number of events generated so far //持有的事件数量
-    private MonkeyEventQueue mQ; //持有的双向链表，用于存储每个事件对象（MonkeyEvent对象）
+    private MonkeyEventQueue mQ; //MonkeySourceRandom对象持有的双向链表，用于存储每个事件对象（MonkeyEvent对象）
     private Random mRandom; //持有的Random对象
     private int mVerbose = 0; //持有的日志等级
     private long mThrottle = 0; //持有的事件延迟时间
     private MonkeyPermissionUtil mPermissionUtil; //持有的权限工具对象
 
-    private boolean mKeyboardOpen = false; //持有的键盘标志位
+    private boolean mKeyboardOpen = false; //持有的键盘是否打开的标志位
 
     /**
      * 一个工具方法，用于返回keycode值对应的字符串
@@ -312,20 +312,21 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      *
      */
     private void generatePointerEvent(Random random, int gesture) {
-        Display display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY);
+        Display display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY); //Display对象
 
-        PointF p1 = randomPoint(random, display);
+        PointF p1 = randomPoint(random, display); //有个randomPint()方法，进去看看
         PointF v1 = randomVector(random);
 
-        long downAt = SystemClock.uptimeMillis();
+        long downAt = SystemClock.uptimeMillis(); //自开机以来的时间戳
 
-        mQ.addLast(new MonkeyTouchEvent(MotionEvent.ACTION_DOWN)
-                .setDownTime(downAt)
-                .addPointer(0, p1.x, p1.y)
-                .setIntermediateNote(false));
+        mQ.addLast(new MonkeyTouchEvent(MotionEvent.ACTION_DOWN) //此处传入的按下的动作
+                .setDownTime(downAt) //记录按下的时间戳
+                .addPointer(0, p1.x, p1.y) //id都传0……，把获取到的x坐标与y坐标也传进去
+                .setIntermediateNote(false)); //false表示这不是一个过渡事件
+        //向双向链表中添加事件，添加一个元素，即MonkeyTouchEvent对象
 
         // sometimes we'll move during the touch
-        if (gesture == GESTURE_DRAG) {
+        if (gesture == GESTURE_DRAG) { //判断手势为拖拽，会走之类
             int count = random.nextInt(10);
             for (int i = 0; i < count; i++) {
                 randomWalk(random, display, p1, v1);
@@ -335,7 +336,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
                         .addPointer(0, p1.x, p1.y)
                         .setIntermediateNote(true));
             }
-        } else if (gesture == GESTURE_PINCH_OR_ZOOM) {
+        } else if (gesture == GESTURE_PINCH_OR_ZOOM) { //缩放手势会走这里
             PointF p2 = randomPoint(random, display);
             PointF v2 = randomVector(random);
 
@@ -368,15 +369,26 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
         randomWalk(random, display, p1, v1);
         mQ.addLast(new MonkeyTouchEvent(MotionEvent.ACTION_UP)
-                .setDownTime(downAt)
+                .setDownTime(downAt) //为啥还记录的按下的时间？
                 .addPointer(0, p1.x, p1.y)
-                .setIntermediateNote(false));
+                .setIntermediateNote(false)); //最后再添加一个ACTION_UP事件，如果是点事件，则至少添加了两个元素对象到mQ中，一个ACTION_DOWN、一个ACTION_UP
     }
 
+    /**
+     *
+     * @param random
+     * @param display 显示对象，知道屏幕的宽和高
+     * @return 返回一个PointF对象，表示一个点？坐标在显示屏幕的坐标范围内
+     */
     private PointF randomPoint(Random random, Display display) {
         return new PointF(random.nextInt(display.getWidth()), random.nextInt(display.getHeight()));
     }
 
+    /**
+     *
+     * @param random Random对象
+     * @return 再次返回一个PointF待修，这次获得点，貌似坐标比较大？都乘了50，没有使用屏幕的相关信息
+     */
     private PointF randomVector(Random random) {
         return new PointF((random.nextFloat() - 0.5f) * 50, (random.nextFloat() - 0.5f) * 50);
     }
@@ -443,15 +455,16 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * generate a random event based on mFactor
+     * 按照基础比例，构造随机事件(重要）
      */
     private void generateEvents() {
-        float cls = mRandom.nextFloat();
-        int lastKey = 0;
+        float cls = mRandom.nextFloat(); //先通过Random对象创建一个随机的float数
+        int lastKey = 0; //用于记录最后一次的key
 
-        if (cls < mFactors[FACTOR_TOUCH]) {
-            generatePointerEvent(mRandom, GESTURE_TAP);
-            return;
-        } else if (cls < mFactors[FACTOR_MOTION]) {
+        if (cls < mFactors[FACTOR_TOUCH]) { //如果随机值小于TOUCH的比例值，比如比例值是30，那么此时会走这里
+            generatePointerEvent(mRandom, GESTURE_TAP); //构造点事件，进去看看怎么构造的事件
+            return; //方法结束……如果TOUCH大于MOTION的话，岂不是MOTION一辈子没有机会了？
+        } else if (cls < mFactors[FACTOR_MOTION]) { //比如这里是20，这里一辈子也没机会执行了
             generatePointerEvent(mRandom, GESTURE_DRAG);
             return;
         } else if (cls < mFactors[FACTOR_PINCHZOOM]) {
@@ -536,16 +549,16 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     }
 
     /**
-     * if the queue is empty, we generate events first
-     * @return the first event in the queue
+     * if the queue is empty, we generate events first 如果双联链表表示的队列是空的，就构造一个事件……
+     * @return the first event in the queue 返回双向链表中的第一个事件
      */
     public MonkeyEvent getNextEvent() {
-        if (mQ.isEmpty()) {
-            generateEvents();
+        if (mQ.isEmpty()) { //当双向链表中没有元素,当第一次调用时mQ中没有持有任何元素
+            generateEvents(); //构造很多事件
         }
-        mEventCount++;
-        MonkeyEvent e = mQ.getFirst();
-        mQ.removeFirst();
-        return e;
+        mEventCount++; //MonkeySourceRandom对象持有的事件数量增加1，表示已经提取出的事件数量
+        MonkeyEvent e = mQ.getFirst(); //获取双向链表中的第一个元素，赋值给局部变量e保存
+        mQ.removeFirst(); //删除掉该事件（第一个元素）
+        return e; //向调用者返回MonkeyEvent对象
     }
 }

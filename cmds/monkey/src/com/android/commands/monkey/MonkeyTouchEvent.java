@@ -24,6 +24,10 @@ import android.view.InputDevice;
  * 触摸事件
  */
 public class MonkeyTouchEvent extends MonkeyMotionEvent {
+    /**
+     *
+     * @param action 表示动作
+     */
     public MonkeyTouchEvent(int action) {
         super(MonkeyEvent.EVENT_TYPE_TOUCH, InputDevice.SOURCE_TOUCHSCREEN, action);
     }

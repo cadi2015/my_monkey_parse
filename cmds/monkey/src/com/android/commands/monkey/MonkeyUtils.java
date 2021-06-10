@@ -51,7 +51,7 @@ public abstract class MonkeyUtils {
     }
 
     /**
-     * 静态内部类，创建的PackageFilter对象会持有两个Set对象
+     * 静态内部类，创建的PackageFilter对象会持有两个Set对象，表示用于过滤包级应用
      */
     public static class PackageFilter {
         private Set<String> mValidPackages = new HashSet<>(); //持有一个，用于保存有效包名的Set对象
@@ -93,21 +93,21 @@ public abstract class MonkeyUtils {
 
         /**
          * Check whether we should run against the given package.
-         *
-         * @param pkg The package name.
-         * @return Returns true if we should run against pkg.
+         * 用于检查App是否允许启动的方法，通过包名检查
+         * @param pkg The package name. 应用的包名
+         * @return Returns true if we should run against pkg. true，表示可以允许启动
          */
         public boolean checkEnteringPackage(String pkg) {
-            if (mInvalidPackages.size() > 0) { //先检查无效包名的集合中，是否包含pkg
+            if (mInvalidPackages.size() > 0) { //如果设置了不允许启动的应用，就先在无效包名的集合中是否包含传入的包名
                 if (mInvalidPackages.contains(pkg)) {
-                    return false;  //如果包含，返回false，表示包名无需输入
+                    return false;  //如果在无效包的集合中包含此包名，直接返回false，表示应用不能启动
                 }
-            } else if (mValidPackages.size() > 0) {  //没有设置无效包名，直接检查有效包名的Set
-                if (!mValidPackages.contains(pkg)) { //如果有效的Set中没有pkg，则返回false，表示无效
-                    return false;
+            } else if (mValidPackages.size() > 0) {  //如果没有设置无效的包名，直接检查有效包名（允许启动）的集合
+                if (!mValidPackages.contains(pkg)) { //如果在允许启动的包名的集合中没有包含对应的应用
+                    return false; //表示在允许启动的集合中没有对应的包名
                 }
             }
-            return true;
+            return true; //无效与有效的集合里，都没有设置过的情况，表示允许应用启动
         }
 
         /**

@@ -92,7 +92,7 @@ public class Monkey {
     private boolean mIgnoreCrashes; //是否忽略App层的崩溃，不然monkey进程会停止
 
     /** Ignore any not responding timeouts while running? */
-    private boolean mIgnoreTimeouts; //是否忽略运行超时？
+    private boolean mIgnoreTimeouts; //是否忽略运行超时？原来是ANR的选项
 
     /** Ignore security exceptions when launching activities */
     /** (The activity launch still fails, but we keep pluggin' away) */
@@ -108,7 +108,7 @@ public class Monkey {
     private boolean mSendNoEvents;
 
     /** This is set when we would like to abort the running of the monkey. */
-    private boolean mAbort; //是否支持中断monkey进程
+    private boolean mAbort; //标记monkey进程,程序是否中断
 
     /**
      * Count each event as a cycle. Set to false for scripts so that each time
@@ -172,13 +172,13 @@ public class Monkey {
     private boolean mRequestProcRank = false;
 
     /** Kill the process after a timeout or crash. */
-    private boolean mKillProcessAfterError; //用于标记是否再崩溃后，中断monkey进程
+    private boolean mKillProcessAfterError; //用于标记是否再ANR错误后，干掉进程（不然重启）
 
     /** Generate hprof reports before/after monkey runs */
     private boolean mGenerateHprof;
 
     /** If set, only match error if this text appears in the description text. */
-    private String mMatchDescription; //biao'ji
+    private String mMatchDescription; //如果在命令行设置了这个，表示包含内容的才做？
 
     /** Package denylist file. */
     private String mPkgBlacklistFile;
@@ -244,7 +244,7 @@ public class Monkey {
 
     private static final String TOMBSTONE_PREFIX = "tombstone_";
 
-    private static int NUM_READ_TOMBSTONE_RETRIES = 5;
+    private static int NUM_READ_TOMBSTONE_RETRIES = 5; //表示tombsone文件是否正在写入的重试次数
 
     private HashSet<Long> mTombstones = null; //持有的用于记录native崩溃文件的情况，Long是tonmb文件的修改时间，在内存中持有对象，当然是为了记录了，赞
 
@@ -263,14 +263,14 @@ public class Monkey {
 
     /**
      * Monitor operations happening in the system. //Binder对象
-     * Activity控制的Binder对象，这些方法应该会被AMS系统服务（单独线程中回调）
+     * ActivityManagerService系统服务控制的Binder对象，这些方法会被AMS系统服务调用（单独线程中回调）
      */
     private class ActivityController extends IActivityController.Stub {
         /**
-         *  当某个Activity启动时，AMS线程会回调此方法
-         * @param intent 启动的Intent对象
-         * @param pkg 启动的包名
-         * @return
+         *  当某个Activity启动时，AMS系统服务会回调此方法（这个方法在哪个线程中执行？）
+         * @param intent 启动Activity时的Intent对象（可序列号）
+         * @param pkg 启动的包名（可序列号）
+         * @return 是否允许启动Activity，靠，难道这里能控制AMS的行为，还真的能控制……
          */
         public boolean activityStarting(Intent intent, String pkg) {
             final boolean allow = isActivityStartingAllowed(intent, pkg); //allow表示是否可以启动Activity
@@ -292,38 +292,38 @@ public class Monkey {
         }
 
         /**
-         *  用于检查Activity是否允许启动
+         *  用于检查Activity是否允许启动，最终的结果会被AMS采纳
          * @param intent 传入的Intent对象
          * @param pkg 传入包名
          * @return
          */
         private boolean isActivityStartingAllowed(Intent intent, String pkg) {
-            if (MonkeyUtils.getPackageFilter().checkEnteringPackage(pkg)) {
-                return true;
+            if (MonkeyUtils.getPackageFilter().checkEnteringPackage(pkg)) {  //把包名传入进去，由PackagerFilter对象的checkEnteringPackage()方法检查应用能否启动
+                return true; //向调用者返回true，表示可以启动
             }
-            if (DEBUG_ALLOW_ANY_STARTS != 0) {
-                return true;
+            if (DEBUG_ALLOW_ANY_STARTS != 0) { //当开启了允许调试
+                return true;  //向调用者返回的为一直允许启动
             }
             // In case the activity is launching home and the default launcher
             // package is disabled, allow anyway to prevent ANR (see b/38121026)
-            final Set<String> categories = intent.getCategories();
-            if (intent.getAction() == Intent.ACTION_MAIN
+            final Set<String> categories = intent.getCategories(); //获得Intent对象持有的所有Category，每个Category是个字符串，存放在一个集合对象中
+            if (intent.getAction() == Intent.ACTION_MAIN //但Intent的action等于ACTION_MAIN,且存在Cetegory，且Category包含CATEGORY_HOME
                     && categories != null
                     && categories.contains(Intent.CATEGORY_HOME)) {
                 try {
                     final ResolveInfo resolveInfo =
                             mPm.resolveIntent(intent, intent.getType(), 0,
-                                    ActivityManager.getCurrentUser());
-                    final String launcherPackage = resolveInfo.activityInfo.packageName;
+                                    ActivityManager.getCurrentUser()); //通过PMS系统服务，获取当前用户权限内，符合Intent对象条件的ResolveInfo对象
+                    final String launcherPackage = resolveInfo.activityInfo.packageName; //获取Launcher的包名
                     if (pkg.equals(launcherPackage)) {
                         return true;
-                    }
+                    } //如果应用是Launcher应用，那必须可以启动此Activity，返回true
                 } catch (RemoteException e) {
-                    Logger.err.println("** Failed talking with package manager!");
+                    Logger.err.println("** Failed talking with package manager!"); //当PMS系统服务出错，走这里
                     return false;
                 }
             }
-            return false;
+            return false; //其他情况下，不允许启动，就直接返回false了
         }
 
         /**
@@ -335,63 +335,64 @@ public class Monkey {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites(); //与严格模式有关……
             Logger.out.println("    // activityResuming(" + pkg + ")");  //输出日志
             boolean allow = MonkeyUtils.getPackageFilter().checkEnteringPackage(pkg)
-                    || (DEBUG_ALLOW_ANY_RESTARTS != 0);
-            if (!allow) { //如果不同意启动Monkey
-                if (mVerbose > 0) {
+                    || (DEBUG_ALLOW_ANY_RESTARTS != 0); //获取是否为允许启动的应用
+            if (!allow) { //如果是不同意启动的应用
+                if (mVerbose > 0) { //只输出一行日志……
                     Logger.out.println("    // " + (allow ? "Allowing" : "Rejecting")
                             + " resume of package " + pkg);
                 }
             }
-            currentPackage = pkg;
+            currentPackage = pkg;//记录当前屏幕中启动应用的包名
             StrictMode.setThreadPolicy(savedPolicy); //还是严格模式
-            return allow; //返回Activity的启动结果
+            return allow; //返回Activity的是否允许启动……
         }
 
         /**
-         * 出现App崩溃时，AMS系统服务会回调此方法，此方法运行在当前Monkey进程的binder线程池中，AMS牛逼，知道哪个进程崩溃了
+         * 出现App崩溃时，AMS系统服务会回调此方法，此方法运行在当前Monkey进程的binder线程池中，AMS牛逼，知道哪个进程崩溃了（看袁辉辉大佬的解读）
          * @param processName 进程名
          * @param pid 进程的pid
          * @param shortMsg 短的堆栈信息
          * @param longMsg 长的堆栈信息
          * @param timeMillis 时间戳
          * @param stackTrace 堆栈信息
-         * @return
+         * @return 当返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）AMS来控制
          */
         public boolean appCrashed(String processName, int pid,
                 String shortMsg, String longMsg,
                 long timeMillis, String stackTrace) {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites(); //
-            Logger.err.println("// CRASH: " + processName + " (pid " + pid + ")"); //向标准错误流中输出日志
+            Logger.err.println("// CRASH: " + processName + " (pid " + pid + ")"); //向标准错误流中输出日志（binder线程）
             Logger.err.println("// Short Msg: " + shortMsg);
             Logger.err.println("// Long Msg: " + longMsg);
             Logger.err.println("// Build Label: " + Build.FINGERPRINT);
             Logger.err.println("// Build Changelist: " + Build.VERSION.INCREMENTAL);
             Logger.err.println("// Build Time: " + Build.TIME);
             Logger.err.println("// " + stackTrace.replace("\n", "\n// "));
-            StrictMode.setThreadPolicy(savedPolicy);
+            StrictMode.setThreadPolicy(savedPolicy); //严格模式
 
             if (mMatchDescription == null
                     || shortMsg.contains(mMatchDescription)
                     || longMsg.contains(mMatchDescription)
                     || stackTrace.contains(mMatchDescription)) {
-                if (!mIgnoreCrashes || mRequestBugreport) {
-                    synchronized (Monkey.this) { //线程间同步，appCrashed方法在自己的Binder线程池里运行，这样Binder线程池里的线程会与Monkey的主线程竞争同一个对象锁
-                                                 //Monkey主线程，每循环一次才会释放一次Monkey对象锁，如果Monkey主线程一直持有的Monkey对象不放，则Binder线程池里的线程会一直被阻塞，等待这个Monkey对象锁
-                        if (!mIgnoreCrashes) { //如果没有忽略崩溃选项
-                            mAbort = true; //设置Monkey进程会被中断
+                if (!mIgnoreCrashes || mRequestBugreport) { //如果没有设置忽略崩溃，或者需要请求bugreport，会走这里
+                    synchronized (Monkey.this) { //线程间同步，appCrashed方法在Monkey进程自己的Binder线程池里运行，这样Binder线程池里的线程会与Monkey的主线程竞争同一个对象锁
+                                                 //Monkey主线程，每循环一次才释放一次Monkey对象锁，如果Monkey主线程一直持有的Monkey对象不放，则Binder线程池里的线程会一直被阻塞，等待这个Monkey对象锁
+                        if (!mIgnoreCrashes) { //如果没有设置忽略崩溃的选项
+                            mAbort = true; //设置Monkey进程会被中断的标志位
                         }
                         if (mRequestBugreport){ //如果用户设置了需要崩溃报告
                             mRequestAppCrashBugreport = true; //设置需要上报App崩溃的标志位，monkey主进程会在循环中读取这个值
                             mReportProcessName = processName; //设置需要上报的进程名字
                         }
                     } //这里，Binder线程池中的线程，会释放对象锁，Monkey主进程会继续执行（用对象锁，做的线程间同步）
-                    return !mKillProcessAfterError; //这个值，是给AMS用的呀……这里暂时有点蒙蔽
+                    return !mKillProcessAfterError; //这个值，是给AMS用的呀……默认值一定返回的是true啊，出现ANR，要求系统重启进程……
                 }
             }
             return false; //当一个App进程出现崩溃后触发，当返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）
         }
 
         /**
+         * 当一鉴定为ANR时就很早触发（AMS用来鉴定ANR，袁辉辉那里讲的）
          * 鉴定为ANR时会触发？Early是什么意思？
          * @param processName 进程名
          * @param pid 进程id
@@ -403,12 +404,12 @@ public class Monkey {
         }
 
         /**
-         * 发生ANR时，AMS回调此方法，应该是在binder线程池中的某个线程中执行吧
+         * app发生ANR时，AMS回调此方法，此方法在Monkey进程的某个binder线程池中的某个线程中执行
          * @param processName 进程名
          * @param pid 进程id
          * @param processStats 进程状态
-         * @return 当返回0时，表示会弹出应用无响应的dialog，如果返回1时，表示继续等待，如果返回-1时，表示立即杀死进程
-         * 当一个应用进程出现ANR时会触发
+         * @return 当返回0时，表示弹出应用无响应的dialog，如果返回1时，表示继续等待，如果返回-1时，表示立即杀死进程
+         * 当一个应用进程出现ANR时会触发，卧槽，这个API我发现是给Setting App准备的吧，我算明白了……
          */
         public int appNotResponding(String processName, int pid, String processStats) {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites();
@@ -426,9 +427,9 @@ public class Monkey {
                         mReportProcessName = processName;
                     }
                 }
-                if (!mIgnoreTimeouts) {
-                    synchronized (Monkey.this) {
-                        mAbort = true;
+                if (!mIgnoreTimeouts) { //如果没有设置忽略超时，原来ANR也得设置，卧槽，我设置没有？
+                    synchronized (Monkey.this) { //与monkey主线程竞争Monkey对象锁，binder线程可能会阻塞在这里（那样AMS中的binder线程也会被阻塞吧，没错，看来Monkey主线程不能太累，会影响System_Server的执行（见袁辉辉篇)
+                        mAbort = true; //Monkey程序是否中断的标志位
                     }
                 }
             }
@@ -474,7 +475,7 @@ public class Monkey {
     /**
      * Run the procrank tool to insert system status information into the debug
      * report.
-     * 报告名为procrank
+     * 文件报告名为procrank
      * 工具名也为procrank
      */
     private void reportProcRank() {
@@ -507,7 +508,7 @@ public class Monkey {
             }
 
             if (mostRecent != null) {
-                commandLineReport("anr traces", "cat " + mostRecent.getAbsolutePath()); //竟然使用的是cat命令
+                commandLineReport("anr traces", "cat " + mostRecent.getAbsolutePath()); //竟然使用的是cat命令，读取到文件的内存，写入到anr trace文件中……
             }
         }
     }
@@ -518,6 +519,8 @@ public class Monkey {
      * NOTE: You cannot perform a dumpsys call from the ActivityController
      * callback, as it will deadlock. This should only be called from the main
      * loop of the monkey.
+     * 报告名称meminfo
+     * 可执行文件为dumpsys meminfo
      */
     private void reportDumpsysMemInfo() {
         commandLineReport("meminfo", "dumpsys meminfo");
@@ -525,61 +528,61 @@ public class Monkey {
 
     /**
      * Print report from a single command line.
-     * 从单个命令行中打印打包
+     * 从单个命令行中的命令执行，并输出一个持久化的报告
      * <p>
      * TODO: Use ProcessBuilder & redirectErrorStream(true) to capture both
      * streams (might be important for some command lines)
-     *
+     * 在此方法中会创建一个子进程，且执行的线程（多数是Monkey主线程）会等待子进程完成工作后才会继续执行，这又涉及到进程间同步的知识点
      * @param reportName Simple tag that will print before the report and in
-     *            various annotations. 报告名称
+     *            various annotations. 报告名称（持久化文件）
      * @param command Command line to execute. 调用的可执行文件
      */
     private void commandLineReport(String reportName, String command) {
         Logger.err.println(reportName + ":"); //向标准错误流中输入报告名和一个冒号
-        Runtime rt = Runtime.getRuntime(); //获取运行时对象
-        Writer logOutput = null; //输出字符流对象（由内存到磁盘）
+        Runtime rt = Runtime.getRuntime(); //获取运行时对象，但是却没有使用这个对象，不应该啊？大佬也会犯错？
+        Writer logOutput = null; //输出字符流对象（由内存到磁盘时使用）
 
         try {
             // Process must be fully qualified here because android.os.Process
-            // is used elsewhere
+            // is used elsewhere 这段话该怎么翻译？
             java.lang.Process p = Runtime.getRuntime().exec(command); //替换命令，在新的进程中执行某个程序，返回一个Process对象表示子进程
 
-            if (mRequestBugreport) { //检查命令行参数中是否传入了需要检查bugreport
+            if (mRequestBugreport) { //检查命令行参数中是否传入了需要使用bugreport
                 logOutput =
-                        new BufferedWriter(new FileWriter(new File(Environment
+                        new BufferedWriter(new FileWriter(new File(Environment //创建可缓存的输出字符流
                                 .getLegacyExternalStorageDirectory(), reportName), true)); //创建一个通道，从内存中向reportName命名的文件中写入日志
             }
-            // pipe everything from process stdout -> System.err
-            InputStream inStream = p.getInputStream(); //获取子进程的标准输入流对象（内存中读到的内容）……，我猜测Monkey主进程会等待子进程完成工作
-            InputStreamReader inReader = new InputStreamReader(inStream); //将输入字节流，转到成输入字符流，
+            // pipe everything from process stdout -> System.err，管道通常从进程的标准输出到标准错误？
+            InputStream inStream = p.getInputStream(); //获取子进程的标准输入流对象（向内存读取内容）……，我猜测Monkey主进程会等待子进程完成工作
+            InputStreamReader inReader = new InputStreamReader(inStream); //将输入字节流，转到成输入字符流
             BufferedReader inBuffer = new BufferedReader(inReader); //在内存中创建一个BufferedReader对象作为缓冲区，用于缓存字符串流中的数据
-            String s;
-            while ((s = inBuffer.readLine()) != null) { //一行一行的读缓冲区中的数据
-                if (mRequestBugreport) { //如果需要执行Bugreport命令保存到文件中
+            String s; //创建一个String局部变量
+            while ((s = inBuffer.readLine()) != null) { //一行一行的读缓冲区中的数据，知道没有数据为止
+                if (mRequestBugreport) { //如果需要执行Bugreport命令保存到文件中，命令行控制
                     try {
-                        // When no space left on the device the write will
+                        // When no space left on the device the write will 如果没有磁盘控件，将会报IOException
                         // occurs an I/O exception, so we needed to catch it
                         // and continue to read the data of the sync pipe to
                         // aviod the bugreport hang forever.
-                        logOutput.write(s); //把在子进程中执行的bugreport程序中的获取到的内容，从内存写入到文件中
-                        logOutput.write("\n");
-                    } catch (IOException e) { //发生IO异常，直接捕获
-                        while(inBuffer.readLine() != null) {} //处理也比较粗暴，先不停的一行一行的读取，直到没有内容后
-                        Logger.err.println(e.toString()); //才在标准错误流中打印异常的堆栈信息
+                        logOutput.write(s); //把从子进程中执行的bugreport程序中的获取到的内容，从内存写入到文件中
+                        logOutput.write("\n"); //每写完一行字符串，再写个换行符
+                    } catch (IOException e) { //发生IO异常，直接捕获（磁盘没有空间时，会这样）
+                        while(inBuffer.readLine() != null) {} //处理也比较粗暴，先不停的一行一行的读取，直到没有内容……没有磁盘空间，也要在内存中把数据处理完
+                        Logger.err.println(e.toString()); //最后在monkey主线程会在标准错误流中打印异常的堆栈信息
                         break;
                     }
                 } else {
-                    Logger.err.println(s); //这里时不需要将bugreport的内容保存在文件中，只是在monkey的标准错误流中输出
+                    Logger.err.println(s); //这里不需要将bugreport的内容保存在文件中，只是在monkey的标准错误流中输出
                 }
-            }
+            } //当读取完子进程的标准输出，或者磁盘没有空间，循环结束
 
-            int status = p.waitFor(); //在这里，Monkey主进程（主线程）会等待，子进程执行的命令行程序当然不仅仅是bugreport（进程间同步），还要获取子进程的退出状态码
-            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，向Monkey的标准错误流打印日志，以及退出状态码
+            int status = p.waitFor(); //在这里，Monkey主进程（主线程）会做等待，等待子进程执行的命令行程序（可执行文件）当然不仅仅是bugreport（进程间同步），还要获取子进程的退出状态码
+            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，Monkey向标准错误流打印日志，以及打印子进程的退出状态码
 
-            if (logOutput != null) {
-                logOutput.close(); //关闭输出字符串流对象
+            if (logOutput != null) { //如果存在输出字符流对象
+                logOutput.close(); //关闭输出字符串流对象（释放内存）
             }
-        } catch (Exception e) { //捕获到其他的异常
+        } catch (Exception e) { //捕获到任何其他的异常
             Logger.err.println("// Exception from " + reportName + ":");
             Logger.err.println(e.toString()); //直接到标准错误流中输出内容
         }
@@ -608,7 +611,8 @@ public class Monkey {
 
     /**
      *
-     * @param reportName 报告的名字
+     * @param reportName 生成一个带有时间的报告的名字
+     *  执行命令行中的命令，然后生成一份持久化的报告
      */
     private void getBugreport(String reportName) {
         reportName += MonkeyUtils.toCalendarTime(System.currentTimeMillis()); //再将文件名处增加一个生成的时间
@@ -618,8 +622,8 @@ public class Monkey {
 
     /**
      * Command-line entry point.
-     * 主线程中执行…………看看大佬的monkey怎么写的……
-     * @param args The command-line arguments
+     * Monkey的主线程入口函数，看看大佬的monkey怎么写的……
+     * @param args The command-line arguments 表示命令行参数
      */
     public static void main(String[] args) {
         // Set the process name showing in "ps" or "top"
@@ -691,7 +695,7 @@ public class Monkey {
             }
         }
 
-        if (!checkInternalConfiguration()) { //目前还没有实现这个功能，预留的方法
+        if (!checkInternalConfiguration()) { //目前还没有实现这个功能，预留方法
             return -2; //内部配置出错，会返回-2
         }
 
@@ -763,29 +767,30 @@ public class Monkey {
 
         // If we're profiling, do it immediately before/after the main monkey
         // loop
-        // 检查是否需要构建堆信息
+        // 检查是否需要构建堆信息，命令行参数可指定
         if (mGenerateHprof) {
             signalPersistentProcesses();
         }
 
-        mNetworkMonitor.start(); //开始监控网络,初始化一些时间，它是一个Binder
-        int crashedAtCycle = 0; //存储循环中发现的崩溃数量
+        mNetworkMonitor.start(); //开始监控网络,其实只是初始化一些时间NetworkMonitor对象持有的时间数据，它是一个Binder对象,其实在getSystemInterfaces（）方法中已经向AMS注册此Binder，AMS通过此Binder与Monkey进程通信网络情况
+        int crashedAtCycle = 0; //保存执行Monkey过程中发现的崩溃数量
         try {
             crashedAtCycle = runMonkeyCycles(); //主线程，执行最重要的runMonkeyCycles（）方法，返回值是发现的崩溃数量
         } finally {
             // Release the rotation lock if it's still held and restore the
-            // original orientation.
+            // original orientation. //执行完Monkey，会走finally
             new MonkeyRotationEvent(Surface.ROTATION_0, false).injectEvent(
-                mWm, mAm, mVerbose); //Monkey完成的时候，注入一个MonkeyRotationEvent，为了调整屏幕吗？
+                mWm, mAm, mVerbose); //Monkey所有事件都完成后，最后注入一个MonkeyRotationEvent，为了调整屏幕吗？没错，就是为了调整屏幕
         }
         mNetworkMonitor.stop(); //停止监控网络
 
-        synchronized (this) {
-            if (mRequestAnrTraces) {
-                reportAnrTraces();
-                mRequestAnrTraces = false;
+        //下面这部分代码，都是在运行事件流结束后执行……才会走到这里（应该是用于收尾工作的代码，也许monkey所有事件都结束后，就会走这里）
+        synchronized (this) { //Monkey主线程需要先获取Monkey对象锁，才能继续执行代码块，这是为了与binder线程进行线程间的同步，因为他们都访问同样的共享变量
+            if (mRequestAnrTraces) { //当AMS发现某个app出现Anr，会通过远程调用appNotResponse，然后该值当前monkey进程的binder线程池中赋值为true（由于binder线程池持有Monkey对象锁）
+                reportAnrTraces(); //调用者获取anr trace的操作
+                mRequestAnrTraces = false; //表示已经执行过anr trace的获取，不需要获取了
             }
-            if (mRequestAnrBugreport){
+            if (mRequestAnrBugreport){ //获取anr相关的，bugreport命令
                 Logger.out.println("Print the anr report");
                 getBugreport("anr_" + mReportProcessName + "_");
                 mRequestAnrBugreport = false;
@@ -813,6 +818,7 @@ public class Monkey {
             }
         }
 
+        //收尾工作
         if (mGenerateHprof) {
             signalPersistentProcesses();
             if (mVerbose > 0) {
@@ -821,8 +827,8 @@ public class Monkey {
         }
 
         try {
-            mAm.setActivityController(null, true);
-            mNetworkMonitor.unregister(mAm);
+            mAm.setActivityController(null, true); //告知AMS，取消ActivityController Binder的注册
+            mNetworkMonitor.unregister(mAm); //告知AMS，取消网络监听
         } catch (RemoteException e) {
             // just in case this was latent (after mCount cycles), make sure
             // we report it
@@ -832,7 +838,7 @@ public class Monkey {
         }
 
         // report dropped event stats
-        if (mVerbose > 0) { //原来只是记录下来，告知用户哪些失败了……
+        if (mVerbose > 0) { //原来只是记录下来，告知用户有哪些事件失败了……
             Logger.out.println(":Dropped: keys=" + mDroppedKeyEvents
                     + " pointers=" + mDroppedPointerEvents
                     + " trackballs=" + mDroppedTrackballEvents
@@ -841,17 +847,17 @@ public class Monkey {
         }
 
         // report network stats
-        mNetworkMonitor.dump(); //报告网络状态
+        mNetworkMonitor.dump(); //输出一下网络的情况，到标准输出流中
 
         if (crashedAtCycle < mCount - 1) {
             Logger.err.println("** System appears to have crashed at event " + crashedAtCycle
-                    + " of " + mCount + " using seed " + mSeed);
-            return crashedAtCycle;
+                    + " of " + mCount + " using seed " + mSeed); //当发现的崩溃数量小于执行次数，在标准错误流中输出一段日志
+            return crashedAtCycle;  //返回发现的错误数量
         } else {
             if (mVerbose > 0) {
                 Logger.out.println("// Monkey finished");
             }
-            return 0;
+            return 0; //表示退出状态码
         }
     }
 
@@ -1068,8 +1074,8 @@ public class Monkey {
 
     /**
      * Check for any internal configuration (primarily build-time) errors.
-     * 写死了为true……默认就是各种爽
-     * @return Returns true if ready to rock.
+     * 写死了为true……默认就是各种爽，检查任意的内部配置
+     * @return Returns true if ready to rock. //返回true表示准备好rock
      */
     private boolean checkInternalConfiguration() {
         return true;
@@ -1078,19 +1084,19 @@ public class Monkey {
     /**
      * Attach to the required system interfaces.
      *
-     * @return Returns true if all system interfaces were available. true表示所有的系统服务都可以获取
-     * 初始化系统服务
+     * @return Returns true if all system interfaces were available. true 表示所有的系统服务都可以获取
+     * 初始化各种系统服务
      */
     private boolean getSystemInterfaces() {
         mAm = ActivityManager.getService(); //获取AMS系统服务
         if (mAm == null) { //如果没有获取到AMS系统服务
             Logger.err.println("** Error: Unable to connect to activity manager; is the system "
                     + "running?"); //告知无法获取AMS服务，反问你系统到底有没有运行
-            return false; //方法结束，直接返回false
+            return false; //方法结束，直接返回false，表示获取所有系统服务失败
         }
 
-        mWm = IWindowManager.Stub.asInterface(ServiceManager.getService("window")); //获取WMS系统服务
-        if (mWm == null) {
+        mWm = IWindowManager.Stub.asInterface(ServiceManager.getService("window")); //获取WMS系统服务，这个跟AMS有啥区别？
+        if (mWm == null) { //当没有获取到WMS系统服务
             Logger.err.println("** Error: Unable to connect to window manager; is the system "
                     + "running?");
             return false;
@@ -1105,13 +1111,13 @@ public class Monkey {
 
         try {
             mAm.setActivityController(new ActivityController(), true);//向AMS注册一个Binder对象，AMS通过此Binder对象，可以与Monkey进程通信
-            mNetworkMonitor.register(mAm); //将获取到的AMS服务注册到一个用于监听网络Binder中
+            mNetworkMonitor.register(mAm); //用于监听网络的Binder注册到AMS系统服务中
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with activity manager!"); //AMS服务挂了……
             return false;
         }
 
-        return true; //返回true，说明获取到了所有系统服务
+        return true; //返回true，说明已经成功获取到所有系统服务的句柄……可以使用系统服务了……
     }
 
     /**
@@ -1175,11 +1181,11 @@ public class Monkey {
      * Run mCount cycles and see if we hit any crashers.
      * <p>
      * TODO: Meta state on keys
-     * 开始执行monkey
+     * 开始执行monkey事件，核心方法
      *
      * @return Returns the last cycle which executed. If the value == mCount, no
-     *         errors detected.
-     * Monkey主线程会一直循环在这里执行
+     *         errors detected. 返回值为发现的崩溃数量
+     * Monkey主线程会一直循环在这个方法里执行
      *
      */
     private int runMonkeyCycles() {
@@ -1188,104 +1194,103 @@ public class Monkey {
 
         boolean shouldReportAnrTraces = false; //记录是否应该报告ANR的标志位
         boolean shouldReportDumpsysMemInfo = false; //记录是否应该报告内存信息的标志位
-        boolean shouldAbort = false; //记录是否应该中断monkey主线程的标志位
-        boolean systemCrashed = false; //系统系统是否发生崩溃的标志位，比如AMS服务停止工作，那么Monkey只好停止了……有道理……
+        boolean shouldAbort = false; //记录是否应该中断monkey主线程的标志位，即monkey程序是否应该终止
+        boolean systemCrashed = false; //记录系统是否发生崩溃的标志位，比如AMS服务可能会停止工作，那么Monkey进程也会停止了……有道理……
 
         try {
             // 1、系统本身未出现崩溃
             // 2、Monkey的执行次数未到
-            // 两个条件同时满足时，monkey程序会一直运行
-            // TO DO : The count should apply to each of the script file.
+            // 两个条件同时满足时，monkey程序会一直运行（monkey主线程进入循环中）
             while (!systemCrashed && cycleCounter < mCount) {
-                synchronized (this) { //Monkey的主线程需要获取对象锁，才可继续运行（Monkey对象自身的锁)
-                    if (mRequestProcRank) {
+                synchronized (this) { //Monkey的主线程需要获取Monkey对象锁，可继续运行此代码块（Monkey对象自身的锁)，后面你知道为何使用这个对象锁，主要是为了线程间同步
+                    if (mRequestProcRank) { //monkey主线程执行到这里，检查标志位，是否需要报告进程信息，也是AMS远程调用指定的，发生ANR时，指定
                         reportProcRank(); //报告进程评分，创建子进程，调用命令行工具
-                        mRequestProcRank = false; //防止重复上报，因为程序在主线程循环中
+                        mRequestProcRank = false; //防止下次循环继续上报，因为程序在主线程循环执行中
                     }
-                    if (mRequestAnrTraces) {//需要上报anr的anrTrace
-                        mRequestAnrTraces = false; //这里防止多次设置标志位
-                        shouldReportAnrTraces = true; //设置应该上报AnrTraces的标志位
+                    if (mRequestAnrTraces) {//需要上报anr的traces，也是AMS远程调用指定的，发生ANR时指定
+                        mRequestAnrTraces = false; //防止下次循环直接上报ANR的traces
+                        shouldReportAnrTraces = true; //表示本次循环应该上报AnrTraces的标志位
                     }
-                    if (mRequestAnrBugreport){ //需要上报anr的bugreport
-                        getBugreport("anr_" + mReportProcessName + "_"); //报告的名字为anr_进程名_
-                        mRequestAnrBugreport = false; //防止多次上报
+                    if (mRequestAnrBugreport){ //需要上报anr的bugreport，它的值是AMS远程调用指定的，发生ANR时指定
+                        getBugreport("anr_" + mReportProcessName + "_"); //报告的文件名为anr_进程名_
+                        mRequestAnrBugreport = false; //防止下次循环中直接上报
                     }
-                    if (mRequestWatchdogBugreport) { //需要上报watchdog的bugreport
-                        Logger.out.println("Print the watchdog report");
-                        getBugreport("anr_watchdog_");
+                    if (mRequestWatchdogBugreport) { //需要上报watchdog的bugreport，这个值是当系统挂了的时候，也是由AMS远程调用指定的
+                        Logger.out.println("Print the watchdog report"); //标注输出流输出日志
+                        getBugreport("anr_watchdog_"); //子进程中执行命令行程序，持久化名字为anr_watchdog_
                         mRequestWatchdogBugreport = false; //这个标志位会由AMS修改，跨进程的告诉Monkey主线程可以干什么
                     }
-                    if (mRequestAppCrashBugreport){ //需要上报app崩溃的bugreport
+                    if (mRequestAppCrashBugreport){ //需要上报app崩溃的bugreport,这个值也是AMS远程调用赋值，草，Binder进程间通信太重要了
                         getBugreport("app_crash" + mReportProcessName + "_"); //生成app_crash文件，同样在子进程中进行
-                        mRequestAppCrashBugreport = false;
+                        mRequestAppCrashBugreport = false; //防止下次循环中执行
                     }
-                    if (mRequestPeriodicBugreport){ //需要上报什么?这个蒙了
-                        getBugreport("Bugreport_"); //单纯的调用bugreport，卧槽，闹半天，每份报告都是单纯的bugreport啊
-                        mRequestPeriodicBugreport = false;
+                    if (mRequestPeriodicBugreport){ //需要上报什么?这个蒙了，这是没有提取到事件的时候，会赋值为true
+                        getBugreport("Bugreport_"); //单纯的调用bugreport，卧槽，闹半天，每份报告都是单纯的bugreport，因为没有拿到事件
+                        mRequestPeriodicBugreport = false; //防止下次循环中执行
                     }
-                    if (mRequestDumpsysMemInfo) { //是否需要请求系统内存信息
-                        mRequestDumpsysMemInfo = false;
+                    if (mRequestDumpsysMemInfo) { //是否需要请求系统内存信息，这个值也是AMS发现出现ANR后，远程调用方法，并修改的此值
+                        mRequestDumpsysMemInfo = false; //防止下次循环中直接执行（或者说，只能由AMS来赋值）
                         shouldReportDumpsysMemInfo = true; //标记应该上报内存信息
                     }
-                    if (mMonitorNativeCrashes) { //是否需要监控native的崩溃信息
+                    if (mMonitorNativeCrashes) { //是否需要监控native的崩溃信息，这是由命令行参数--monitor-native-crashes决定的
                         // first time through, when eventCounter == 0, just set up
                         // the watcher (ignore the error)
-                        if (checkNativeCrashes() && (eventCounter > 0)) { //发现本地崩溃，且事件数量大于0（这里没有系统服务的回调，而是一直检测文件）
-                            Logger.out.println("** New native crash detected."); //在标准输出流，打印natvie崩溃找到
-                            if (mRequestBugreport) { //同样调用bugreport
+                        if (checkNativeCrashes() && (eventCounter > 0)) { //发现本地崩溃，且事件数量大于0（这里没有系统服务的回调，而是一直目录中的文件数量）
+                            Logger.out.println("** New native crash detected."); //在标准输出流，打印natvie崩溃找到的消息
+                            if (mRequestBugreport) { //同样调用bugreport命令
                                 getBugreport("native_crash_"); //只不过文件名是这个……，这里子进程中进行
                             }
-                            mAbort = mAbort || !mIgnoreNativeCrashes || mKillProcessAfterError; //检查是否需要中断monkey进程，有一个值为true，即会赋值给mAbort
+                            mAbort = mAbort || !mIgnoreNativeCrashes || mKillProcessAfterError; //检查是否需要中断monkey进程，有一个值为true，即会赋值给mAbort，说明Monkey程序即将要结束了
                                               //mAbort、mIgnoreNativeCrashes、mKillProcessAfterError
                         }
                     }
-                    if (mAbort) { //如果需要中断，
-                        shouldAbort = true; //赋值应该中断
+                    if (mAbort) { //如果Monkey程序需要中断
+                        shouldAbort = true; //局部变量赋值应该中断
                     }
                     if (mWatchdogWaiting) { //如果已经通知watchdog等待
                         mWatchdogWaiting = false;
-                        notifyAll();  //通知所有停留再Monkey对象上的线程，继续运行
+                        notifyAll();  //通知所有停留在Monkey对象上的线程，继续运行（不过其他线程如果阻塞在这里，还得获取到Monkey对象锁，才能继续运行，尴尬）
                     }
                 }
 
                 // Report ANR, dumpsys after releasing lock on this.
                 // This ensures the availability of the lock to Activity controller's appNotResponding
-                if (shouldReportAnrTraces) { //如果必须上报ANR Trace
-                    shouldReportAnrTraces = false;
+                if (shouldReportAnrTraces) { //如果必须上报ANR Trace，上面都标记过了，果然局部变量在下面会使用
+                    shouldReportAnrTraces = false; //防止下次循环上报
                     reportAnrTraces(); //通过此方法，上报AnrTraces
                 }
 
-                if (shouldReportDumpsysMemInfo) {
-                    shouldReportDumpsysMemInfo = false;
+                if (shouldReportDumpsysMemInfo) { //必须上报内存信息的情况
+                    shouldReportDumpsysMemInfo = false; //防止下次循环直接上报
                     reportDumpsysMemInfo(); //报告内存信息，使用的命令是：dumpsys meminfo
                 }
 
                 if (shouldAbort) { //应该中断monkey进程的处理
-                    shouldAbort = false;
+                    shouldAbort = false; //防止下次循环……好像没有什么必要了……作者多写了……
                     Logger.out.println("** Monkey aborted due to error."); //标准错误流输出Monkey中断的错误
                     Logger.out.println("Events injected: " + eventCounter); //输出事件数量
-                    return eventCounter; //返回事件数量
+                    return eventCounter; //返回事件数量，循环结束……
                 }
 
                 // In this debugging mode, we never send any events. This is
                 // primarily here so you can manually test the package or category
                 // limits, while manually exercising the system.
-                if (mSendNoEvents) { //用于测试事件数的？
-                    eventCounter++;
-                    cycleCounter++;
-                    continue;
+                if (mSendNoEvents) { //原来是调试事件数量用的，这个debug用的好，如果指定了命令行参数--dbg-no-events，且Monkey程序没有中断的时候，会走这里
+                    eventCounter++; //将事件数量增加1
+                    cycleCounter++; //将循环数量增加1
+                    continue; //本次循环结束，不再往下执行，下面是什么？为啥不然执行了
                 }
 
-                if ((mVerbose > 0) && (eventCounter % 100) == 0 && eventCounter != 0) {
+                if ((mVerbose > 0) && (eventCounter % 100) == 0 && eventCounter != 0) { //这里是事件数量达到100的时候会执行
                     String calendarTime = MonkeyUtils.toCalendarTime(System.currentTimeMillis()); //计算花费的时间
-                    long systemUpTime = SystemClock.elapsedRealtime();
+                    long systemUpTime = SystemClock.elapsedRealtime(); //在拿一个事件
                     Logger.out.println("    //[calendar_time:" + calendarTime + " system_uptime:"
                             + systemUpTime + "]"); //输出花费的时间，以及系统启动的时间？
                     Logger.out.println("    // Sending event #" + eventCounter); //输出事件总数
-                }
+                } //每执行100个事件，输出一次日志
 
-                MonkeyEvent ev = mEventSource.getNextEvent(); //从EventSource中提取事件，从命令行执行时，实际是从MonkeySourceRandom的getNextEvent（）方法中提取事件的
-                if (ev != null) { //如果提取到事件……
+                MonkeyEvent ev = mEventSource.getNextEvent(); //从EventSource对象中提取事件，从命令行执行时，实际是从MonkeySourceRandom的getNextEvent（）方法中提取事件的，每次循环都从MonkeySourceEvent中提取事件，假设有两个点事件在队列中
+               if (ev != null) { //如果成功提取到事件……
                     int injectCode = ev.injectEvent(mWm, mAm, mVerbose); //回调每个MonkeyEvent的injectEvent（）方法，并且把WMS、AMS、还有日志等级都传了进去，具体的操作，由具体的事件对象自己执行，注入码表示成功或者失败
                     if (injectCode == MonkeyEvent.INJECT_FAIL) { //处理失败的情况，卧槽还要+1
                         Logger.out.println("    // Injection Failed");
@@ -1401,19 +1406,19 @@ public class Monkey {
 
     /**
      * Wait for the given tombstone file to be completely written.
-     *
+     * 用于等待文件写入完成
      * @param path The path of the tombstone file.
      */
     private void waitForTombstoneToBeWritten(Path path) {
         boolean isWritten = false;
         try {
             // Ensure file is done writing by sleeping and comparing the previous and current size
-            for (int i = 0; i < NUM_READ_TOMBSTONE_RETRIES; i++) {
-                long size = Files.size(path); //获取文件的行数？，不对，原来是字节数
+            for (int i = 0; i < NUM_READ_TOMBSTONE_RETRIES; i++) {  //确保文件已经写完了，只重试5次（相当于只等5s
+                long size = Files.size(path); //获取文件的字节数（注意不是行数）
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1000); //线程休息1秒
                 } catch (InterruptedException e) { }
-                if (size > 0 && Files.size(path) == size) {
+                if (size > 0 && Files.size(path) == size) { //字节数没有改变，则说明文件不再写入了
                     //File size is bigger than 0 and hasn't changed
                     isWritten = true;
                     break;
@@ -1512,7 +1517,7 @@ public class Monkey {
 
     /**
      * Return the next argument on the command line.
-     *
+     * 用于返回下一个命令行参数值的方法
      * @return Returns the argument string, or null if we have reached the end.
      */
     private String nextArg() {

@@ -23,6 +23,7 @@ import android.os.Build;
 
 /**
  * Events for running the shell command.
+ * 每个对象表示一个命令行命令……看来可以在monkey脚本文件中添加命令
  */
 public class MonkeyCommandEvent extends MonkeyEvent {
 
@@ -38,9 +39,9 @@ public class MonkeyCommandEvent extends MonkeyEvent {
         if (mCmd != null) {
             //Execute the shell command
             try {
-                java.lang.Process p = Runtime.getRuntime().exec(mCmd);
-                int status = p.waitFor();
-                Logger.err.println("// Shell command " + mCmd + " status was " + status);
+                java.lang.Process p = Runtime.getRuntime().exec(mCmd); //在子进程中执行命令
+                int status = p.waitFor(); //等待子进程完成工作，并获取子进程的退出状态码
+                Logger.err.println("// Shell command " + mCmd + " status was " + status); //标准错误流中输出命令名，以及子进程的退出状态码
             } catch (Exception e) {
                 Logger.err.println("// Exception from " + mCmd + ":");
                 Logger.err.println(e.toString());
