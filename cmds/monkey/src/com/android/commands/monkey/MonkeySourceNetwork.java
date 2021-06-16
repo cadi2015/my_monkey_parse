@@ -56,56 +56,81 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     /**
      * ReturnValue from the MonkeyCommand that indicates whether the
      * command was sucessful or not.
+     * 每个MonkeyCommandReturn对象表示一个monkey命令的查找结果
      */
     public static class MonkeyCommandReturn {
-        private final boolean success;
-        private final String message;
+        private final boolean success; //持有的是否成功的标志位
+        private final String message; //持有的消息
 
+        /**
+         * 可以指定结果
+         * @param success 表示是否成功
+         */
         public MonkeyCommandReturn(boolean success) {
             this.success = success;
             this.message = null;
         }
 
+        /**
+         * 可以指定结果和消息
+         * @param success 表示是否成功
+         * @param message 表示消息是什么
+         */
         public MonkeyCommandReturn(boolean success,
                                    String message) {
             this.success = success;
             this.message = message;
         }
 
+        /**
+         *
+         * @return 返回是否存在提示信息
+         */
         boolean hasMessage() {
             return message != null;
         }
 
+        /**
+         * 获取message存储的字符串
+         * @return
+         */
         String getMessage() {
             return message;
         }
 
+        /**
+         * 返回是否成功
+         * @return
+         */
         boolean wasSuccessful() {
             return success;
         }
     }
 
-    public final static MonkeyCommandReturn OK = new MonkeyCommandReturn(true);
-    public final static MonkeyCommandReturn ERROR = new MonkeyCommandReturn(false);
+    public final static MonkeyCommandReturn OK = new MonkeyCommandReturn(true); //MonkeySourceNetwork类持有的MonkeyCommandReturn对象，表示解析命令成功
+    public final static MonkeyCommandReturn ERROR = new MonkeyCommandReturn(false);//MonkeySourceNetwork类持有的MonkeyCommandReturn对象，表示解析命令失败
     public final static MonkeyCommandReturn EARG = new MonkeyCommandReturn(false,
-                                                                            "Invalid Argument");
+                                                                            "Invalid Argument");//MonkeySourceNetwork类持有的MonkeyCommandReturn对象，表示解析命令失败，且包含有提示信息，说明是无效参数
 
     /**
      * Interface that MonkeyCommands must implement.
+     * 表示具备命令解析能力的接口
+     * 规定了一个接口方法， 表示用于解析命令
      */
     public interface MonkeyCommand {
         /**
          * Translate the command line into a sequence of MonkeyEvents.
          *
-         * @param command the command line.
-         * @param queue the command queue.
-         * @return MonkeyCommandReturn indicating what happened.
+         * @param command the command line. 命令行传入的命令
+         * @param queue the command queue.  用于保存命令的队列
+         * @return MonkeyCommandReturn indicating what happened. 解析monkey命令的结果
          */
         MonkeyCommandReturn translateCommand(List<String> command, CommandQueue queue);
     }
 
     /**
      * Command to simulate closing and opening the keyboard.
+     * 用于表示模拟关闭与开启键盘的命令
      */
     private static class FlipCommand implements MonkeyCommand {
         // flip open
@@ -113,9 +138,9 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
         public MonkeyCommandReturn translateCommand(List<String> command,
                                                     CommandQueue queue) {
             if (command.size() > 1) {
-                String direction = command.get(1);
-                if ("open".equals(direction)) {
-                    queue.enqueueEvent(new MonkeyFlipEvent(true));
+                String direction = command.get(1); //取出来分隔后的第二个参数，备注：第一个参数是flip
+                if ("open".equals(direction)) { //当第二个参数是open
+                    queue.enqueueEvent(new MonkeyFlipEvent(true)); //创建一个MonkeyFlipEvent对象到
                     return OK;
                 } else if ("close".equals(direction)) {
                     queue.enqueueEvent(new MonkeyFlipEvent(false));
@@ -128,12 +153,13 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Command to send touch events to the input system.
+     *  通过IPS服务，发送touch 事件
      */
     private static class TouchCommand implements MonkeyCommand {
         // touch [down|up|move] [x] [y]
-        // touch down 120 120
-        // touch move 140 140
-        // touch up 140 140
+        // touch down 120 120 按下某处坐标的命令
+        // touch move 140 140 移动某处坐标的命令
+        // touch up 140 140   弹起某处坐标的命令
         public MonkeyCommandReturn translateCommand(List<String> command,
                                                     CommandQueue queue) {
             if (command.size() == 4) {
@@ -317,6 +343,8 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Command to wake the device up
+     * 唤醒设备的命令封装
+     * WakeCommand对象
      */
     private static class WakeCommand implements MonkeyCommand {
         // wake
@@ -432,26 +460,29 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     /**
      * Force the device to wake up.
      * 强制手机唤醒^
-     * @return true if woken up OK.
+     * @return true if woken up OK. 返回true，说明唤醒成功
      */
     private static final boolean wake() {
         IPowerManager pm =
                 IPowerManager.Stub.asInterface(ServiceManager.getService(Context.POWER_SERVICE));//先获取PowerManagerSystem服务
         try {
             pm.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_UNKNOWN,
-                    "Monkey", null); //调用它的wakeup（）接口，卧槽尼玛，这个方法在哪调用呀？起码得等系统服务回应呀，应该会阻塞当前线程
+                    "Monkey", null); //调用它的wakeup（）接口，卧槽尼玛，这个方法在哪调用呀？起码得等系统服务回应呀，应该会阻塞当前线程（同步调用）
         } catch (RemoteException e) {
             Log.e(TAG, "Got remote exception", e); //远程服务出错，会走这里
             return false;
         }
-        return true;
+        return true; //只要PowerManagerService没有出错，就说明成功
     }
 
     // This maps from command names to command implementations.
     private static final Map<String, MonkeyCommand> COMMAND_MAP = new HashMap<String, MonkeyCommand>(); //MonkeySourceNetwork类持有的Ma对象，
 
+    /**
+     * MonkeySourceNetwork类加载时执行
+     */
     static {
-        // Add in all the commands we support //初始化支持的命令
+        // Add in all the commands we support //初始化支持的命令到一个HashMap对象中
         COMMAND_MAP.put("flip", new FlipCommand()); //flip命令
         COMMAND_MAP.put("touch", new TouchCommand()); //touch命令
         COMMAND_MAP.put("trackball", new TrackballCommand()); //trackball事件
@@ -468,7 +499,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
         COMMAND_MAP.put("getrootview", new MonkeySourceNetworkViews.GetRootViewCommand()); //getrootview事件
         COMMAND_MAP.put("getviewswithtext", //getviewswitchtext是按
                         new MonkeySourceNetworkViews.GetViewsWithTextCommand());
-        COMMAND_MAP.put("deferreturn", new DeferReturnCommand());
+        COMMAND_MAP.put("deferreturn", new DeferReturnCommand()); //这个fefer return事件真他妈的怪……
     }
 
     // QUIT command
@@ -480,6 +511,9 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     private static final String OK_STR = "OK";
     private static final String ERROR_STR = "ERROR";
 
+    /**
+     * 一个表示具备命令队列的接口，实现此接口，将具备入队事件的能力，每个事件为MonkeyEvent
+     */
     public static interface CommandQueue {
         /**
          * Enqueue an event to be returned later.  This allows a
@@ -495,12 +529,13 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     // Queue of Events to be processed.  This allows commands to push
     // multiple events into the queue to be processed.
+    // 用于处理事件的队列对象，
     private static class CommandQueueImpl implements CommandQueue{
-        private final Queue<MonkeyEvent> queuedEvents = new LinkedList<MonkeyEvent>();
+        private final Queue<MonkeyEvent> queuedEvents = new LinkedList<MonkeyEvent>(); //CommandQueueImpl对象持有的1个LinkedList对象，每个元素为MonkeyEvent对象
 
         public void enqueueEvent(MonkeyEvent e) {
             queuedEvents.offer(e);
-        }
+        } //向队列的尾部添加元素
 
         /**
          * Get the next queued event to excecute.
@@ -509,7 +544,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
          */
         public MonkeyEvent getNextQueuedEvent() {
             return queuedEvents.poll();
-        }
+        } //删除并获取队列头部的元素
     };
 
     // A holder class for a deferred return value. This allows us to defer returning the success of
@@ -546,9 +581,9 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
         }
     };
 
-    private final CommandQueueImpl commandQueue = new CommandQueueImpl();
+    private final CommandQueueImpl commandQueue = new CommandQueueImpl(); //MonkeySourceNetwork持有的CommandQueueImpl对象，用于在队列中保存作为事件的MonkeyEvent对象
 
-    private BufferedReader input;
+    private BufferedReader input; //MonkeySourceNetwork对象持有的BufferedReader对象，用于从磁盘或者键盘读取二进制字节流
     private PrintWriter output;
     private boolean started = false; //表示监听端口是否开始，默认值为没有开始
 
@@ -558,14 +593,14 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     /**
      *
      * @param port 表示需要监听的端口
-     * @throws IOException
+     * @throws IOException 可能会抛出IOException
      */
     public MonkeySourceNetwork(int port) throws IOException {
         // Only bind this to local host.  This means that you can only
-        // talk to the monkey locally, or though adb port forwarding. //只能绑定本地主机，两种使用方法，monkey在本地，或者通过adb的端口转发
+        // talk to the monkey locally, or though adb port forwarding. //只能绑定本地主机的某个端口，两种使用方法，monkey在本地，或者通过adb的端口转发
         serverSocket = new ServerSocket(port,
                                         0, // default backlog
-                                        InetAddress.getLocalHost()); //创建ServerSocket对象
+                                        InetAddress.getLocalHost()); //创建ServerSocket对象，监听在本地主机的某个端口上
     }
 
     /**
@@ -576,18 +611,18 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
      * @param port the port to listen on 表示需要进程监听的端口
      */
     private void startServer() throws IOException {
-        clientSocket = serverSocket.accept(); //开始监听端口
-        // At this point, we have a client connected.  这里的关键是，我们必须有一个客户端连接
+        clientSocket = serverSocket.accept(); //调用ServerSocket的accept（）方法，可以获得一个Socket对象，注意此处为线程会被阻塞，直到获得一个客户端的连接
+        // At this point, we have a client connected.
         // Attach the accessibility listeners so that we can start receiving
         // view events. Do this before wake so we can catch the wake event
         // if possible.
-        MonkeySourceNetworkViews.setup();
+        MonkeySourceNetworkViews.setup(); //初始化AccessibilityManagerService服务，只有在客户端连接成功后，才会去再去做AccessibilityManagerService的连接
         // Wake the device up in preparation for doing some commands.
-        wake();
+        wake(); //唤醒手机
 
-        input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //从Socket的客户端获取二进制字节流，再将二进制字节流转化为字符流，在内存中即可读取
         // auto-flush
-        output = new PrintWriter(clientSocket.getOutputStream(), true);
+        output = new PrintWriter(clientSocket.getOutputStream(), true); //将clientSocket的输出字节流全部添加到打印输出流
     }
 
     /**
@@ -615,26 +650,26 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
     /**
      * This function splits the given line into String parts.  It obey's quoted
      * strings and returns them as a single part.
-     *
+     * 用于将整行命令，分隔到一个list中
      * "This is a test" -> returns only one element
      * This is a test -> returns four elements
      *
-     * @param line the line to parse
-     * @return the List of elements
+     * @param line the line to parse 需要解析的命令行
+     * @return the List of elements 返回命令行解析后的list
      */
     private static List<String> commandLineSplit(String line) {
-        ArrayList<String> result = new ArrayList<String>();
-        StringTokenizer tok = new StringTokenizer(line);
+        ArrayList<String> result = new ArrayList<String>(); //创建一个list对象
+        StringTokenizer tok = new StringTokenizer(line); //创建StringTokenizer对象，用于分隔字符串
 
-        boolean insideQuote = false;
-        StringBuffer quotedWord = new StringBuffer();
-        while (tok.hasMoreTokens()) {
-            String cur = tok.nextToken();
-            if (!insideQuote && cur.startsWith("\"")) {
+        boolean insideQuote = false; //标志位
+        StringBuffer quotedWord = new StringBuffer(); //创建一个StringBuffer对象
+        while (tok.hasMoreTokens()) { //检查是否还有分隔符……
+            String cur = tok.nextToken(); //得到分隔符前的一个字符串，哈哈
+            if (!insideQuote && cur.startsWith("\"")) { //如果不是insideQuote，当然字符串是以\开头的情况
                 // begin quote
-                quotedWord.append(replaceQuotedChars(cur));
-                insideQuote = true;
-            } else if (insideQuote) {
+                quotedWord.append(replaceQuotedChars(cur)); //多个\替换成一个？然后再添加StringBuffer中
+                insideQuote = true; //标记替换完成……
+            } else if (insideQuote) { //如果已经将多个\替换成一个\，走这里
                 // end quote
                 if (cur.endsWith("\"")) {
                     insideQuote = false;
@@ -647,7 +682,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
                     quotedWord.append(" ").append(replaceQuotedChars(cur));
                 }
             } else {
-                result.add(replaceQuotedChars(cur));
+                result.add(replaceQuotedChars(cur)); //平常没有以\开头的……，每个直接添加到list中了
             }
         }
         return result;
@@ -655,29 +690,33 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Translate the given command line into a MonkeyEvent.
-     *
-     * @param commandLine the full command line given.
+     * 解析命令，并转化为MonkeyEvent
+     * @param commandLine the full command line given. 完整的由Socket Client传过来的一整行
      */
     private void translateCommand(String commandLine) {
-        Log.d(TAG, "translateCommand: " + commandLine);
-        List<String> parts = commandLineSplit(commandLine);
-        if (parts.size() > 0) {
-            MonkeyCommand command = COMMAND_MAP.get(parts.get(0));
-            if (command != null) {
-                MonkeyCommandReturn ret = command.translateCommand(parts, commandQueue);
-                handleReturn(ret);
+        Log.d(TAG, "translateCommand: " + commandLine); //向控制台打印即将要的解析命令
+        List<String> parts = commandLineSplit(commandLine); //调用commandLineSplit（）方法，将一行命令分隔到一个线性表中
+        if (parts.size() > 0) { //如果取得的命令行，有多个元素组成
+            MonkeyCommand command = COMMAND_MAP.get(parts.get(0)); //取出来命令行中的第一个命令，然后去Map查找到对应的MonkeyCommand对象
+            if (command != null) { //找到，说明支持该命令
+                MonkeyCommandReturn ret = command.translateCommand(parts, commandQueue); //调用对应命令的translateCommand，并将表示整行命令行参数的list，和一个保存命令的队列对象传入
+                handleReturn(ret); //命令解析结果对象传入到handleReturn（）方法中
             }
         }
     }
 
+    /**
+     *
+     * @param ret 命令解析结果对象
+     */
     private void handleReturn(MonkeyCommandReturn ret) {
-        if (ret.wasSuccessful()) {
-            if (ret.hasMessage()) {
-                returnOk(ret.getMessage());
+        if (ret.wasSuccessful()) { //如果是成功
+            if (ret.hasMessage()) { //如果有打打印Message
+                returnOk(ret.getMessage()); //将待打印的信息传入进去
             } else {
-                returnOk();
+                returnOk(); //没有需要打印的消息，使用默认的打印功能接口
             }
-        } else {
+        } else { //这里是命令解析失败的情况
             if (ret.hasMessage()) {
                 returnError(ret.getMessage());
             } else {
@@ -688,31 +727,34 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
 
     public MonkeyEvent getNextEvent() {
-        if (!started) { //当没有开始的时候（第一次）
+        if (!started) { //第一次获取事件时，才会做等待一个客户端的连接
             try {
-                startServer();
+                startServer(); //开始进入等待客户端的连接，注意里面有阻塞方法的调用
             } catch (IOException e) {
                 Log.e(TAG, "Got IOException from server", e);
                 return null;
             }
-            started = true;
+            started = true; //标志位标注只有第一次会进入等待客户端连接，看来只能连接一个客户端进程
         }
 
         // Now, get the next command.  This call may block, but that's OK
         try {
-            while (true) {
+            while (true) { //进入循环获取事件
                 // Check to see if we have any events queued up.  If
                 // we do, use those until we have no more.  Then get
                 // more input from the user.
-                MonkeyEvent queuedEvent = commandQueue.getNextQueuedEvent();
+                MonkeyEvent queuedEvent = commandQueue.getNextQueuedEvent(); //如果成功从事件队列中获取到一个事件
                 if (queuedEvent != null) {
                     // dispatch the event
-                    return queuedEvent;
+                    return queuedEvent; //直接返回事件对象，此方法结束
                 }
 
                 // Check to see if we have any returns that have been deferred. If so, now that
                 // we've run the queued commands, wait for the given event to happen (or the timeout
                 // to be reached), and handle the deferred MonkeyCommandReturn.
+                // 检查一下我们是否有延期的退货。
+                // 如果是，那么现在，我们已经运行了排队命令，等待给定的事件发生(或超时)，并处理延迟的MonkeyCommandReturn
+                //
                 if (deferredReturn != null) {
                     Log.d(TAG, "Waiting for event");
                     MonkeyCommandReturn ret = deferredReturn.waitForEvent();
@@ -720,45 +762,48 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
                     handleReturn(ret);
                 }
 
-                String command = input.readLine();
-                if (command == null) {
-                    Log.d(TAG, "Connection dropped.");
+                String command = input.readLine(); //从输入字符流中读取一行（这行命令从Socket 客户端发过来的）
+                if (command == null) { //如果没有从输入字节流中获取到任何的命令，理论上客户端不发送命令的话，这里是不是应该是空的字符串?难道为null的时候真的是客户端断开了吗？
+                    Log.d(TAG, "Connection dropped."); //说明连接断开了
                     // Treat this exactly the same as if the user had
                     // ended the session cleanly with a done commant.
-                    command = DONE;
+                    command = DONE; //将当前命令直接指定为done
                 }
 
+                //如果命令中，包含done
                 if (DONE.equals(command)) {
                     // stop the server so it can accept new connections
                     try {
-                        stopServer();
+                        stopServer(); //停止客户端的连接，这样就能和一个新的客户端建立Socket连接了……
                     } catch (IOException e) {
                         Log.e(TAG, "Got IOException shutting down!", e);
-                        return null;
+                        return null; //针对发生IO异常的情况，这里返回null……整个方法返回null，说明没有获取到事件
                     }
                     // return a noop event so we keep executing the main
                     // loop
-                    return new MonkeyNoopEvent();
+                    return new MonkeyNoopEvent(); //为了确保monkey主线程可以继续执行
                 }
 
                 // Do quit checking here
-                if (QUIT.equals(command)) {
+                if (QUIT.equals(command)) { //如果命令中有包括有quit
                     // then we're done
                     Log.d(TAG, "Quit requested");
                     // let the host know the command ran OK
-                    returnOk();
-                    return null;
+                    returnOk(); //向控制输出一行
+                    return null; //返回值为null，说明没有获取到事件
                 }
 
                 // Do comment checking here.  Comments aren't a
                 // command, so we don't echo anything back to the
                 // user.
+                // 纯检查，如果命令中是以#开头的，什么也不干，循环中断一次，继续……这个主要是起到注释的作用
                 if (command.startsWith("#")) {
                     // keep going
                     continue;
                 }
 
                 // Translate the command line.  This will handle returning error/ok to the user
+                //真是解析socket client传过来的指令，除了其他已经处理过的done、quit
                 translateCommand(command);
             }
         } catch (IOException e) {
@@ -769,6 +814,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Returns ERROR to the user.
+     * 向用户返回错误（标准输出流）
      */
     private void returnError() {
         output.println(ERROR_STR);
@@ -794,13 +840,13 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Returns OK to the user.
-     *
+     * 在标准输出流中打印信息
      * @param returnValue the value to return from this command.
      */
     private void returnOk(String returnValue) {
-        output.print(OK_STR);
-        output.print(":");
-        output.println(returnValue);
+        output.print(OK_STR); //打印OK_STR
+        output.print(":"); //打印：
+        output.println(returnValue); //打印指定的信息
     }
 
     public void setVerbose(int verbose) {

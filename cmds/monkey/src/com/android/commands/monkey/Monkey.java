@@ -951,7 +951,7 @@ public class Monkey {
                     // do nothing - it's caught at the very start of run()
                 } else if (opt.equals("--dbg-no-events")) {
                     mSendNoEvents = true;
-                } else if (opt.equals("--port")) {
+                } else if (opt.equals("--port")) { //在命令行中指定一个端口
                     mServerPort = (int) nextOptionLong("Server port to listen on for commands");
                 } else if (opt.equals("--setup")) {
                     mSetupFileName = nextOptionData();
@@ -1290,7 +1290,7 @@ public class Monkey {
                 } //每执行100个事件，输出一次日志
 
                 MonkeyEvent ev = mEventSource.getNextEvent(); //从EventSource对象中提取事件，从命令行执行时，实际是从MonkeySourceRandom的getNextEvent（）方法中提取事件的，每次循环都从MonkeySourceEvent中提取事件，假设有两个点事件在队列中
-               if (ev != null) { //如果成功提取到事件……
+               if (ev != null) {  //如果成功提取到事件……
                     int injectCode = ev.injectEvent(mWm, mAm, mVerbose); //回调每个MonkeyEvent的injectEvent（）方法，并且把WMS、AMS、还有日志等级都传了进去，具体的操作，由具体的事件对象自己执行，注入码表示成功或者失败
                     if (injectCode == MonkeyEvent.INJECT_FAIL) { //处理失败的情况，卧槽还要+1
                         Logger.out.println("    // Injection Failed");

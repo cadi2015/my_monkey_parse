@@ -15,6 +15,9 @@
  */
 package com.android.commands.monkey;
 
+/**
+ * 用于提示用户的自定义异常类
+ */
 public class MonkeyViewException extends java.lang.Exception {
     /**
      * Constructs a MonkeyViewException object

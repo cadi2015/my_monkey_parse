@@ -50,34 +50,41 @@ import java.util.Map;
  */
 public class MonkeySourceNetworkViews {
 
-    protected static android.app.UiAutomation sUiTestAutomationBridge;
+    protected static android.app.UiAutomation sUiTestAutomationBridge; //MonkeySourceNetworkViews类持有的UiAutomation对象
 
     private static IPackageManager sPm =
-            IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
-    private static Map<String, Class<?>> sClassMap = new HashMap<String, Class<?>>();
+            IPackageManager.Stub.asInterface(ServiceManager.getService("package")); //MonkeySourceNetworkViews类持有的PMS系统服务的Binder
+    private static Map<String, Class<?>> sClassMap = new HashMap<String, Class<?>>(); //MonkeySourceNetworkViews类持有的HashMap对象，key为String对象，Value为Class对象
 
-    private static final String HANDLER_THREAD_NAME = "UiAutomationHandlerThread"; //表示拥有Looper的线程名字
+    private static final String HANDLER_THREAD_NAME = "UiAutomationHandlerThread"; //常量，表示拥有Looper的线程名字
 
     private static final String REMOTE_ERROR =
-            "Unable to retrieve application info from PackageManager";
-    private static final String CLASS_NOT_FOUND = "Error retrieving class information";
-    private static final String NO_ACCESSIBILITY_EVENT = "No accessibility event has occured yet";
-    private static final String NO_NODE = "Node with given ID does not exist";
+            "Unable to retrieve application info from PackageManager"; //使用系统服务出错时的提示
+    private static final String CLASS_NOT_FOUND = "Error retrieving class information"; //类没有找到
+    private static final String NO_ACCESSIBILITY_EVENT = "No accessibility event has occured yet"; //没有accessbility事件的提示
+    private static final String NO_NODE = "Node with given ID does not exist"; //不存在Node结点
     private static final String NO_CONNECTION = "Failed to connect to AccessibilityService, "
-                                                + "try restarting Monkey";
+                                                + "try restarting Monkey"; //不能连接AccessibilityService的提示（应该是AccessibilityManagerService）
 
     private static final Map<String, ViewIntrospectionCommand> COMMAND_MAP =
-            new HashMap<String, ViewIntrospectionCommand>();
+            new HashMap<String, ViewIntrospectionCommand>(); //MonkeySourceNetworkViews类持有的HashMap对象，Key为String，Value为ViewIntrospectionCommand
 
     /* Interface for view queries */
+
+    /**
+     * 表示具备什么样的能力？查询能力
+     */
     private static interface ViewIntrospectionCommand {
         /**
          * Get the response to the query
-         * @return the response to the query
+         * @return the response to the query 返回查找结果
          */
         public MonkeyCommandReturn query(AccessibilityNodeInfo node, List<String> args);
     }
 
+    /**
+     *
+     */
     static {
         COMMAND_MAP.put("getlocation", new GetLocation());
         COMMAND_MAP.put("gettext", new GetText());
@@ -99,13 +106,16 @@ public class MonkeySourceNetworkViews {
      * Registers the event listener for AccessibilityEvents.
      * Also sets up a communication connection so we can query the
      * accessibility service.
+     * 为accesbilityevents注册事件监听器
+     * 并且建立通信连接，以便我们可以查询
+     * 可访问性服务。
      */
     public static void setup() {
-        sHandlerThread.setDaemon(true);
-        sHandlerThread.start();
-        sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(), //将Looper传进去即可
+        sHandlerThread.setDaemon(true); //设置为守护线程
+        sHandlerThread.start(); //启动线程
+        sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(), //将线程中创建的Looper传进去
                 new UiAutomationConnection()); //原来自己创建一个UiAutomationConnection对象即可
-        sUiTestAutomationBridge.connect(); //与AssiblityService建立连接
+        sUiTestAutomationBridge.connect(); //与AssiblityManagerService建立连接
     }
 
     public static void teardown() {
@@ -145,6 +155,12 @@ public class MonkeySourceNetworkViews {
                 false, 0, null);
     }
 
+    /**
+     *
+     * @param viewId 表示控件的id
+     * @return
+     * @throws MonkeyViewException 可能会抛出的异常，
+     */
     private static AccessibilityNodeInfo getNodeByViewId(String viewId) throws MonkeyViewException {
         int connectionId = sUiTestAutomationBridge.getConnectionId();
         AccessibilityInteractionClient client = AccessibilityInteractionClient.getInstance();
@@ -238,6 +254,8 @@ public class MonkeySourceNetworkViews {
 
     /**
      * A command that returns the accessibility ids of the root view.
+     * 用于获取View树根节点的命令封装
+     *
      */
     public static class GetRootViewCommand implements MonkeyCommand {
         // getrootview
@@ -465,19 +483,19 @@ public class MonkeySourceNetworkViews {
             if (args.size() == 0) {
                 int viewId;
                 try {
-                    Class<?> klass = node.getClass();
-                    Field field = klass.getDeclaredField("mAccessibilityViewId");
-                    field.setAccessible(true);
-                    viewId = ((Integer) field.get(node)).intValue();
+                    Class<?> klass = node.getClass(); //获取控件的类型
+                    Field field = klass.getDeclaredField("mAccessibilityViewId"); //获取控件的id字段,看来AccessibilityNodeInfo对象是对View对象的封装呀，为啥要封装啊，mAccessibilityViewId只有View对象里面才有呀
+                    field.setAccessible(true); //设置可访问私有字段
+                    viewId = ((Integer) field.get(node)).intValue(); //获取整型的View id
                 } catch (NoSuchFieldException e) {
-                    return new MonkeyCommandReturn(false, NO_NODE);
+                    return new MonkeyCommandReturn(false, NO_NODE); //字段不存在是，走这里，说明肯定不是一个具体的View
                 } catch (IllegalAccessException e) {
-                    return new MonkeyCommandReturn(false, "Access exception");
+                    return new MonkeyCommandReturn(false, "Access exception"); //无法访问字段走这里
                 }
-                String ids = node.getWindowId() + " " + viewId;
+                String ids = node.getWindowId() + " " + viewId; //卧槽，还要获取window的id，和view的id组合在一起
                 return new MonkeyCommandReturn(true, ids);
             }
-            return EARG;
+            return EARG; //只要list保存的元素数量不是0，就会走这里，说明是无效参数
         }
     }
 
