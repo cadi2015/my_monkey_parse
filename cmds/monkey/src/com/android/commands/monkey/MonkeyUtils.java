@@ -37,12 +37,17 @@ public abstract class MonkeyUtils {
 
     /**
      * Return calendar time in pretty string.
+     * 返回一个格式化后的字符串时间
      */
     public static synchronized String toCalendarTime(long time) {
         DATE.setTime(time);
         return DATE_FORMATTER.format(DATE);
     }
 
+    /**
+     * 获取于PackageFilter对象
+     * @return
+     */
     public static PackageFilter getPackageFilter() {
         if (sFilter == null) {
             sFilter = new PackageFilter();
@@ -51,7 +56,9 @@ public abstract class MonkeyUtils {
     }
 
     /**
-     * 静态内部类，创建的PackageFilter对象会持有两个Set对象，表示用于过滤包级应用
+     * 静态内部类，创建的PackageFilter对象持有两个Set对象，表示用于过滤包级应用
+     * 一个set保存有效的包名
+     * 另一个set保存无效的包名
      */
     public static class PackageFilter {
         private Set<String> mValidPackages = new HashSet<>(); //持有一个，用于保存有效包名的Set对象

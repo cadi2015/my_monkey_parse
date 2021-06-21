@@ -45,7 +45,9 @@ import java.util.StringTokenizer;
 
 /**
  * An Event source for getting Monkey Network Script commands from
- * over the network. 表示从Socket提取事件的事件来演
+ * over the network. 表示从Socket提取事件的事件来源
+ * 将Socket客户端传递过来的每行命令（约定好的协议）转化为Monkey支持的MonkeyEvent对象，完美的执行
+ * 接下来我将先获取View树，然后解析成MonkeyEvent对象
  */
 public class MonkeySourceNetwork implements MonkeyEventSource {
     private static final String TAG = "MonkeyStub";
@@ -140,7 +142,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
             if (command.size() > 1) {
                 String direction = command.get(1); //取出来分隔后的第二个参数，备注：第一个参数是flip
                 if ("open".equals(direction)) { //当第二个参数是open
-                    queue.enqueueEvent(new MonkeyFlipEvent(true)); //创建一个MonkeyFlipEvent对象到
+                    queue.enqueueEvent(new MonkeyFlipEvent(true)); //创建一个MonkeyFlipEvent对象，然后添加到命令的队列中
                     return OK;
                 } else if ("close".equals(direction)) {
                     queue.enqueueEvent(new MonkeyFlipEvent(false));
@@ -292,21 +294,23 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Command to put the Monkey to sleep.
+     * 休眠命令封装
      */
     private static class SleepCommand implements MonkeyCommand {
         // sleep 2000
+        //格式：sleep 2000
         public MonkeyCommandReturn translateCommand(List<String> command,
                                                     CommandQueue queue) {
-            if (command.size() == 2) {
-                int sleep = -1;
-                String sleepStr = command.get(1);
+            if (command.size() == 2) { //如果命令行行分割后的元素数量为2
+                int sleep = -1; //用于保存休眠时间
+                String sleepStr = command.get(1); //获取休眠时间的字符串
                 try {
-                    sleep = Integer.parseInt(sleepStr);
+                    sleep = Integer.parseInt(sleepStr); //休眠时间由字符串转化成整型
                 } catch (NumberFormatException e) {
                     Log.e(TAG, "Not a number: " + sleepStr, e);
-                    return EARG;
+                    return EARG; //如果转化错误，说明第二个参数不是数字，返回EARG对象，说明是参数问题
                 }
-                queue.enqueueEvent(new MonkeyThrottleEvent(sleep));
+                queue.enqueueEvent(new MonkeyThrottleEvent(sleep)); //添加一个MonkeyThrottleEvent对象，作为休眠事件
                 return OK;
             }
             return EARG;
@@ -494,7 +498,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
         COMMAND_MAP.put("type", new TypeCommand()); //type事件
         COMMAND_MAP.put("listvar", new MonkeySourceNetworkVars.ListVarCommand()); //listvar事件
         COMMAND_MAP.put("getvar", new MonkeySourceNetworkVars.GetVarCommand()); //getvar事件
-        COMMAND_MAP.put("listviews", new MonkeySourceNetworkViews.ListViewsCommand()); //listviews事件
+        COMMAND_MAP.put("listviews", new MonkeySourceNetworkViews.ListViewsCommand()); //listviews事件，目前来看，没有使用……
         COMMAND_MAP.put("queryview", new MonkeySourceNetworkViews.QueryViewCommand()); //queryview事件
         COMMAND_MAP.put("getrootview", new MonkeySourceNetworkViews.GetRootViewCommand()); //getrootview事件
         COMMAND_MAP.put("getviewswithtext", //getviewswitchtext是按
@@ -700,7 +704,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
             MonkeyCommand command = COMMAND_MAP.get(parts.get(0)); //取出来命令行中的第一个命令，然后去Map查找到对应的MonkeyCommand对象
             if (command != null) { //找到，说明支持该命令
                 MonkeyCommandReturn ret = command.translateCommand(parts, commandQueue); //调用对应命令的translateCommand，并将表示整行命令行参数的list，和一个保存命令的队列对象传入
-                handleReturn(ret); //命令解析结果对象传入到handleReturn（）方法中
+                handleReturn(ret); //命令解析结果对象传入到handleReturn（）方法中，主要是在控制台输出，别的没干啥……
             }
         }
     }
@@ -739,7 +743,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
         // Now, get the next command.  This call may block, but that's OK
         try {
-            while (true) { //进入循环获取事件
+            while (true) { //进入循环获取事件（只有在获取到事件、
                 // Check to see if we have any events queued up.  If
                 // we do, use those until we have no more.  Then get
                 // more input from the user.
@@ -762,7 +766,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
                     handleReturn(ret);
                 }
 
-                String command = input.readLine(); //从输入字符流中读取一行（这行命令从Socket 客户端发过来的）
+                String command = input.readLine(); //从输入字符流中读取一行（这行命令是从Socket 客户端发过来的）
                 if (command == null) { //如果没有从输入字节流中获取到任何的命令，理论上客户端不发送命令的话，这里是不是应该是空的字符串?难道为null的时候真的是客户端断开了吗？
                     Log.d(TAG, "Connection dropped."); //说明连接断开了
                     // Treat this exactly the same as if the user had
@@ -803,7 +807,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
                 }
 
                 // Translate the command line.  This will handle returning error/ok to the user
-                //真是解析socket client传过来的指令，除了其他已经处理过的done、quit
+                // 解析socket client传过来的一行指令，除了其他已经处理过的done、quit指令
                 translateCommand(command);
             }
         } catch (IOException e) {

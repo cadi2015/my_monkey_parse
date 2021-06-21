@@ -20,6 +20,7 @@ import android.view.InputDevice;
 
 /**
  * monkey trackball event
+ * 轨迹球事件，继承MonkeyMotionEvent
  */
 public class MonkeyTrackballEvent extends MonkeyMotionEvent {
     public MonkeyTrackballEvent(int action) {

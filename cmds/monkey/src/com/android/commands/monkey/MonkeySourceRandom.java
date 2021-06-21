@@ -60,16 +60,16 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         KeyEvent.KEYCODE_MUTE,
     };
     /** If a physical key exists?
-     *  检查图形按键?
+     *  检查图形按键?，好大的数组，每个元素是boolean值
      */
     private static final boolean[] PHYSICAL_KEY_EXISTS = new boolean[KeyEvent.getMaxKeyCode() + 1];
 
     /**
-     * 静态代码块用于初始化PHYSICAL_KEY_EXISTS的元素
+     * 静态代码块用于初始化PHYSICAL_KEY_EXISTS数组的元素
      */
     static {
         for (int i = 0; i < PHYSICAL_KEY_EXISTS.length; ++i) {
-            PHYSICAL_KEY_EXISTS[i] = true;
+            PHYSICAL_KEY_EXISTS[i] = true; //将数组的所有默认值，设置为true
         }
         // Only examine SYS_KEYS
         for (int i = 0; i < SYS_KEYS.length; ++i) {
@@ -89,13 +89,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * 公开常量
-     * 表示某个事件所占比例的下标值
+     * 某个事件的事件比例在数组中的下标值
      * 最后一个FACTORZ_COUNT表示可以调节的事件比例数量
      */
-    public static final int FACTOR_TOUCH        = 0; //触摸事件的下标
-    public static final int FACTOR_MOTION       = 1; //
-    public static final int FACTOR_PINCHZOOM    = 2;
-    public static final int FACTOR_TRACKBALL    = 3;
+    public static final int FACTOR_TOUCH        = 0; //触摸事件比例的下标
+    public static final int FACTOR_MOTION       = 1; //MOTION事件比例的下标
+    public static final int FACTOR_PINCHZOOM    = 2; //PINCHZOOM事件比例的下标
+    public static final int FACTOR_TRACKBALL    = 3; //TRACKBALL事件比例的下标
     public static final int FACTOR_ROTATION     = 4;
     public static final int FACTOR_PERMISSION   = 5;
     public static final int FACTOR_NAV          = 6;
@@ -103,11 +103,11 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     public static final int FACTOR_SYSOPS       = 8;
     public static final int FACTOR_APPSWITCH    = 9;
     public static final int FACTOR_FLIP         = 10;
-    public static final int FACTOR_ANYTHING     = 11;    //一共12个事件
+    public static final int FACTOR_ANYTHING     = 11;    //一共12个事件，需要一个可以存储12个元素的数组
     public static final int FACTORZ_COUNT       = 12;    // should be last+1  使用常量，是因为Monkey持有了一个数组对象，而MonkeySourceRandom中也持有了一个数组对象，它俩的长度一致
 
     /**
-     * 私有常量
+     * 私有的常量
      * 表示手势动作
      * 1、点
      * 2、拽
@@ -120,13 +120,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     /** percentages for each type of event.  These will be remapped to working
      * values after we read any optional values.
      **/
-    private float[] mFactors = new float[FACTORZ_COUNT]; //MonkeySourceRandom对象持有一个数组对象
+    private float[] mFactors = new float[FACTORZ_COUNT]; //MonkeySourceRandom对象持有一个数组对象，用于保存所有事件出现的比例，不同的事件所占比例存储在不同的下标值
     private List<ComponentName> mMainApps; //持有的List对象，用于保存需要操作的App信息
     private int mEventCount = 0;  //total number of events generated so far //持有的事件数量
     private MonkeyEventQueue mQ; //MonkeySourceRandom对象持有的双向链表，用于存储每个事件对象（MonkeyEvent对象）
     private Random mRandom; //持有的Random对象
     private int mVerbose = 0; //持有的日志等级
-    private long mThrottle = 0; //持有的事件延迟时间
+    private long mThrottle = 0; //持有的事件延迟时间，但是没有使用……大牛也会犯错……
     private MonkeyPermissionUtil mPermissionUtil; //持有的权限工具对象
 
     private boolean mKeyboardOpen = false; //持有的键盘是否打开的标志位
@@ -154,7 +154,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * 创建MonkeySourceRandom对象的唯一构造方法，创建一个指定要求的对象，参数需要你来传递
-     * @param random 构建的Random对象，持有随机种子值
+     * @param random Random对象，持有随机种子值
      * @param MainApps List持有的每个元素，每个App的Launch Activity
      * @param throttle 事件的延迟时间
      * @param randomizeThrottle 事件的延迟事件是否需要随机
@@ -189,7 +189,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * Adjust the percentages (after applying user values) and then normalize to a 0..1 scale.
-     *  检查与调整事件比例
+     *  检查与调整每个事件的比例值
      *  返回值表示事件比例是否正确，true 表示正确
      */
     private boolean adjustEventFactors() {
@@ -198,7 +198,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         float defaultSum = 0.0f; //临时变量用于记录事件默认比例总数
         int defaultCount = 0; //临时变量，记录使用的默认事件总数
         for (int i = 0; i < FACTORZ_COUNT; ++i) { //开始遍历每一个存储的事件比例
-            if (mFactors[i] <= 0.0f) {   // user values are zero or negative 用户设置的都是小于0的数字（负值）
+            if (mFactors[i] <= 0.0f) {   // user values are zero or negative 用户设置的都是小于0的数字（负值）在Monkey中设置
                 userSum -= mFactors[i]; //计算出一个用户比例的总值
             } else {
                 defaultSum += mFactors[i]; //这是用户没有设置的比例值总数
@@ -206,29 +206,29 @@ public class MonkeySourceRandom implements MonkeyEventSource {
             }
         }
 
-        // if the user request was > 100%, reject it，看来用户如果没有设置的全部事件，比例值可以小于100%
+        // if the user request was > 100%, reject it，用户没有设置的全部事件，绝不能超过100%，如果没有设置所有的事件比例，则可以小于100%
         if (userSum > 100.0f) {
-            Logger.err.println("** Event weights > 100%"); //标准错误流写入错误信息，超过100%
-            return false; //事件比例出错（用户自己设置的）
+            Logger.err.println("** Event weights > 100%"); //标准错误流写入错误信息，告知Event weights超过100%
+            return false; //事件比例出错（用户自己设置的事件比例出错）
         }
 
         // if the user specified all of the weights, then they need to be 100%
-        // 当用户设置了所有的事件比例，会在这里继续判断，事件比例也不能小于100%，草，严谨……，必须是100%
+        // 如果用户设置了所有的事件比例，事件比例不能小于100%，草，严谨……，必须是100%（只有在所有事件比例全部设置的情况，要求）
         if (defaultCount == 0 && (userSum < 99.9f || userSum > 100.1f)) {
             Logger.err.println("** Event weights != 100%");
             return false;
         }
 
         // compute the adjustment necessary
-        float defaultsTarget = (100.0f - userSum); //100减去用户自己设置的比例总数，还能余下的事件值
-        float defaultsAdjustment = defaultsTarget / defaultSum;  //计算剩余事件值与程序默认事件总值的比例
+        float defaultsTarget = (100.0f - userSum); //100减去用户自己设置的比例总数，还能余下的事件比例值
+        float defaultsAdjustment = defaultsTarget / defaultSum;  //计算剩余事件比例值与使用的默认事件总值的比例
 
         // fix all values, by adjusting defaults, or flipping user values back to >0
         for (int i = 0; i < FACTORZ_COUNT; ++i) { //遍历所有事件比例值
             if (mFactors[i] <= 0.0f) {   // user values are zero or negative
                 mFactors[i] = -mFactors[i]; //把用户设置的负值全部修复成整数值
             } else {
-                mFactors[i] *= defaultsAdjustment; //把用户没有设置的值全部乘以一个比例值（我那里因为是100%，所以，这会让剩余的默认事件比例值全部为0）
+                mFactors[i] *= defaultsAdjustment; //把用户没有设置的值全部乘以一个比例值（我那里因为个人设置的事件比例未100%，所以，这会让剩余的默认事件比例值全部为0）
             }
         }
 
@@ -241,21 +241,28 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         }
 
         /**
-         * 无效key值出现时，直接返回事件比例为错误
+         * 无效key值出现时，直接返回事件比例检查出错
          */
         if (!validateKeys()) {
             return false;
         }
 
         // finally, normalize and convert to running sum
-        float sum = 0.0f;  //这里没看懂^^^
+        float sum = 0.0f;  //这里没看懂^^^，比如touch是20，motion是10
         for (int i = 0; i < FACTORZ_COUNT; ++i) {
             sum += mFactors[i] / 100.0f; //调整为百分比值
-            mFactors[i] = sum;
+            mFactors[i] = sum; //这里赋值时，touch为0.2，motion则是0.3……我也是醉了，这个事件比例是不是bug？
         }
         return true;
     }
 
+    /**
+     *
+     * @param catName
+     * @param keys
+     * @param factor
+     * @return true表示有效，如果比例值小于0.1有效，如果KEY_CODE是正确的在有效范围内的KEY_CODE值，也会返回true
+     */
     private static boolean validateKeyCategory(String catName, int[] keys, float factor) {
         if (factor < 0.1f) {
             return true;
@@ -271,6 +278,10 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * See if any key exists for non-zero factors.
+     * 检查无效值，主要检查3个
+     *  NAV_KEYS
+     *  MAJOR_NAV_KEYS
+     *  SYS_KEYS
      */
     private boolean validateKeys() {
         return validateKeyCategory("NAV_KEYS", NAV_KEYS, mFactors[FACTOR_NAV])
@@ -280,7 +291,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * set the factors
-     *
+     * 未使用……
      * @param factors percentages for each type of event
      */
     public void setFactors(float factors[]) {
@@ -306,9 +317,9 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      * TODO:  More useful than the random walk here would be to pick a single random direction
      * and distance, and divvy it up into a random number of segments.  (This would serve to
      * generate fling gestures, which are important).
-     *
-     * @param random Random number source for positioning
-     * @param gesture The gesture to perform.
+     * 用于构造点事件
+     * @param random Random number source for positioning 随机数量
+     * @param gesture The gesture to perform. 需要的手势
      *
      */
     private void generatePointerEvent(Random random, int gesture) {
@@ -381,13 +392,14 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      * @return 返回一个PointF对象，表示一个点？坐标在显示屏幕的坐标范围内
      */
     private PointF randomPoint(Random random, Display display) {
-        return new PointF(random.nextInt(display.getWidth()), random.nextInt(display.getHeight()));
+        return new PointF(random.nextInt(display.getWidth()), random.nextInt(display.getHeight())); //获取屏幕宽度与屏幕高度，在此范围随机获取各自一个值，并创建PointF对象
+
     }
 
     /**
      *
      * @param random Random对象
-     * @return 再次返回一个PointF待修，这次获得点，貌似坐标比较大？都乘了50，没有使用屏幕的相关信息
+     * @return 再次返回一个PointF，这次获得的点，貌似坐标比较大？都乘了50，没有使用屏幕的相关信息
      */
     private PointF randomVector(Random random) {
         return new PointF((random.nextFloat() - 0.5f) * 50, (random.nextFloat() - 0.5f) * 50);
@@ -549,12 +561,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     }
 
     /**
+     * monkey主线程会一直调用该方法,获取MonkeyEvent对象
      * if the queue is empty, we generate events first 如果双联链表表示的队列是空的，就构造一个事件……
      * @return the first event in the queue 返回双向链表中的第一个事件
      */
     public MonkeyEvent getNextEvent() {
-        if (mQ.isEmpty()) { //当双向链表中没有元素,当第一次调用时mQ中没有持有任何元素
-            generateEvents(); //构造很多事件
+        if (mQ.isEmpty()) { //当双向链表中没有元素时，说明没有可用的事件
+            generateEvents(); //构造事件，可能构造一个，也可能构造多个
         }
         mEventCount++; //MonkeySourceRandom对象持有的事件数量增加1，表示已经提取出的事件数量
         MonkeyEvent e = mQ.getFirst(); //获取双向链表中的第一个元素，赋值给局部变量e保存

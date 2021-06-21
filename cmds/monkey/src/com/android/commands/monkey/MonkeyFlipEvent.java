@@ -23,6 +23,7 @@ import android.app.IActivityManager;
 import android.view.IWindowManager;
 /**
  * monkey keyboard flip event
+ * 表示键盘反转事件
  */
 public class MonkeyFlipEvent extends MonkeyEvent {
 
@@ -56,6 +57,13 @@ public class MonkeyFlipEvent extends MonkeyEvent {
         mKeyboardOpen = keyboardOpen;
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager 未使用
+     * @param iam wires to current activity manager 未使用
+     * @param verbose a log switch 使用
+     * @return
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
         if (verbose > 0) {
@@ -65,7 +73,7 @@ public class MonkeyFlipEvent extends MonkeyEvent {
         // inject flip event
         try {
             FileOutputStream f = new FileOutputStream("/dev/input/event0");
-            f.write(mKeyboardOpen ? FLIP_0 : FLIP_1);
+            f.write(mKeyboardOpen ? FLIP_0 : FLIP_1); //操作文件等同于操作硬件……
             f.close();
             return MonkeyEvent.INJECT_SUCCESS;
         } catch (IOException e) {

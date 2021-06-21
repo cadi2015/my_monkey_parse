@@ -56,7 +56,7 @@ import java.util.Set;
 
 /**
  * Application that injects random key events and other actions into the system.
- * 向系统中注入随机键事件和其他操作的应用程序，写的牛逼
+ * 向系统中注入随机键事件和其他操作的CLI程序，写的牛逼，大写的牛逼！！！
  */
 public class Monkey {
 
@@ -623,7 +623,7 @@ public class Monkey {
     /**
      * Command-line entry point.
      * Monkey的主线程入口函数，看看大佬的monkey怎么写的……
-     * @param args The command-line arguments 表示命令行参数
+     * @param args The command-line arguments 表示命令行参数,存储在一个String数组对象中
      */
     public static void main(String[] args) {
         // Set the process name showing in "ps" or "top"
@@ -666,7 +666,7 @@ public class Monkey {
             mFactors[i] = 1.0f; //为数组对象mFactors中的每个元素都赋值为1.0f，下标0-11
         }
 
-        if (!processOptions()) { //处理所有的命令行参数，这是通过调用processOptions()函数，此时Monkey对象已经持有所有的命令行参数
+        if (!processOptions()) { //处理所有的命令行参数，通过调用processOptions()方法，方法结束后，Monkey对象会持有所有的命令行参数
             return -1; //如果命令行参数发生错误，返回退出状态码-1，这个退出状态码，shell可以拿到
         }
 
@@ -699,7 +699,7 @@ public class Monkey {
             return -2; //内部配置出错，会返回-2
         }
 
-        if (!getSystemInterfaces()) { //检查并初始化系统服务，这里非常重要，Monkey程序依赖系统服务的远程Binder，完成工作
+        if (!getSystemInterfaces()) { //检查与初始化系统服务，这里非常重要，Monkey程序依赖系统服务的远程Binder，完成工作
             return -3; //系统服务出错，会返回-3
         }
 
@@ -709,7 +709,7 @@ public class Monkey {
 
         mRandom = new Random(mSeed); //创建Random对象……随机种子传给它,伪随机……
 
-        //初始化Monkey对象持有的mEventSource，注意会优先走脚本文件、然后是网络、最后才是命令行的方式
+        //初始化Monkey对象持有的mEventSource，注意优先走单个脚本文件、然后是多个脚本文件，接着是网络、最后才是命令行的方式，同时指定时的优先级就是这样……
 
         if (mScriptFileNames != null && mScriptFileNames.size() == 1) { //当指定1个脚本文件时，会走这里
             // script mode, ignore other options
@@ -719,7 +719,7 @@ public class Monkey {
 
             mCountEvents = false; //无需计算事件的次数
         } else if (mScriptFileNames != null && mScriptFileNames.size() > 1) { //当指定多个脚本文件时，会走这里
-            if (mSetupFileName != null) { //如果指定了初始化脚本文件，通过--setup选项参数可指定
+            if (mSetupFileName != null) { //如果指定了初始化脚本文件，通过选项参数--setup可指定该文件的路径……
                 mEventSource = new MonkeySourceRandomScript(mSetupFileName, //可见第一个参数就是mSetupFileName文件名
                         mScriptFileNames, mThrottle, mRandomizeThrottle, mRandom,
                         mProfileWaitTime, mDeviceSleepTime, mRandomizeScript);//创建一个MonkeySourceRandomScript对象，可以用来选择多个脚本文件中的一个
@@ -752,7 +752,7 @@ public class Monkey {
             for (int i = 0; i < MonkeySourceRandom.FACTORZ_COUNT; i++) {
                 if (mFactors[i] <= 0.0f) { //遍历Monkey对象持有的数组对象mFactors
                     ((MonkeySourceRandom) mEventSource).setFactors(i, mFactors[i]); //将命令行中的指定的事件存放到MonkeySourceRandom对象持有的数组对象中
-                    //只有用户指定的事件比例是个小于0的数字，这下子MonkeySourceRandom已经保存上用户需要事件比例了
+                    //只有用户指定的事件比例值会是小于0的数字（故意这样做的)，这下子MonkeySourceRandom持有的mFactor对象会保存上用户需要事件比例了
                 }
             }
 
@@ -767,7 +767,8 @@ public class Monkey {
 
         // If we're profiling, do it immediately before/after the main monkey
         // loop
-        // 检查是否需要构建堆信息，命令行参数可指定
+        // 检查是否需要构建堆信息，命令行参数"--hprof"可指定
+
         if (mGenerateHprof) {
             signalPersistentProcesses();
         }
@@ -784,7 +785,7 @@ public class Monkey {
         }
         mNetworkMonitor.stop(); //停止监控网络
 
-        //下面这部分代码，都是在运行事件流结束后执行……才会走到这里（应该是用于收尾工作的代码，也许monkey所有事件都结束后，就会走这里）
+        //下面这部分代码，都是在运行事件流结束后（runMonkeyCycles（）方法结束）执行才会走到这里（应该是用于收尾工作的代码）
         synchronized (this) { //Monkey主线程需要先获取Monkey对象锁，才能继续执行代码块，这是为了与binder线程进行线程间的同步，因为他们都访问同样的共享变量
             if (mRequestAnrTraces) { //当AMS发现某个app出现Anr，会通过远程调用appNotResponse，然后该值当前monkey进程的binder线程池中赋值为true（由于binder线程池持有Monkey对象锁）
                 reportAnrTraces(); //调用者获取anr trace的操作
@@ -1202,6 +1203,7 @@ public class Monkey {
             // 2、Monkey的执行次数未到
             // 两个条件同时满足时，monkey程序会一直运行（monkey主线程进入循环中）
             while (!systemCrashed && cycleCounter < mCount) {
+                //每次获取事件前做的事情真多呀
                 synchronized (this) { //Monkey的主线程需要获取Monkey对象锁，可继续运行此代码块（Monkey对象自身的锁)，后面你知道为何使用这个对象锁，主要是为了线程间同步
                     if (mRequestProcRank) { //monkey主线程执行到这里，检查标志位，是否需要报告进程信息，也是AMS远程调用指定的，发生ANR时，指定
                         reportProcRank(); //报告进程评分，创建子进程，调用命令行工具
@@ -1232,7 +1234,7 @@ public class Monkey {
                         mRequestDumpsysMemInfo = false; //防止下次循环中直接执行（或者说，只能由AMS来赋值）
                         shouldReportDumpsysMemInfo = true; //标记应该上报内存信息
                     }
-                    if (mMonitorNativeCrashes) { //是否需要监控native的崩溃信息，这是由命令行参数--monitor-native-crashes决定的
+                    if (mMonitorNativeCrashes) { //如果需要监控native的崩溃信息，由命令行参数--monitor-native-crashes决定
                         // first time through, when eventCounter == 0, just set up
                         // the watcher (ignore the error)
                         if (checkNativeCrashes() && (eventCounter > 0)) { //发现本地崩溃，且事件数量大于0（这里没有系统服务的回调，而是一直目录中的文件数量）
@@ -1251,7 +1253,7 @@ public class Monkey {
                         mWatchdogWaiting = false;
                         notifyAll();  //通知所有停留在Monkey对象上的线程，继续运行（不过其他线程如果阻塞在这里，还得获取到Monkey对象锁，才能继续运行，尴尬）
                     }
-                }
+                } //monkey执行到这里，会释放Monkey对象锁，其他线程开始有机会获取Monkey对象锁
 
                 // Report ANR, dumpsys after releasing lock on this.
                 // This ensures the availability of the lock to Activity controller's appNotResponding
@@ -1289,41 +1291,42 @@ public class Monkey {
                     Logger.out.println("    // Sending event #" + eventCounter); //输出事件总数
                 } //每执行100个事件，输出一次日志
 
-                MonkeyEvent ev = mEventSource.getNextEvent(); //从EventSource对象中提取事件，从命令行执行时，实际是从MonkeySourceRandom的getNextEvent（）方法中提取事件的，每次循环都从MonkeySourceEvent中提取事件，假设有两个点事件在队列中
+                MonkeyEvent ev = mEventSource.getNextEvent(); //从EventSource对象中提取事件，如果从命令行执行，实际是从MonkeySourceRandom的getNextEvent（）方法中提取事件的，每次循环都从MonkeySourceEvent中提取事件，假设有两个点事件在队列中
+                //我将创建一种新的MonkeySource，解析View树，生成MonkeyEvent
                if (ev != null) {  //如果成功提取到事件……
-                    int injectCode = ev.injectEvent(mWm, mAm, mVerbose); //回调每个MonkeyEvent的injectEvent（）方法，并且把WMS、AMS、还有日志等级都传了进去，具体的操作，由具体的事件对象自己执行，注入码表示成功或者失败
+                    int injectCode = ev.injectEvent(mWm, mAm, mVerbose); //回调每个MonkeyEvent的injectEvent（）方法，并且把自己持有的WMS、AMS、还有日志等级都传了进去，具体的操作，由具体的事件对象自己执行，注入码表示成功或者失败
                     if (injectCode == MonkeyEvent.INJECT_FAIL) { //处理失败的情况，卧槽还要+1
-                        Logger.out.println("    // Injection Failed");
+                        Logger.out.println("    // Injection Failed"); //向标准输出流打印日志
                         if (ev instanceof MonkeyKeyEvent) { //若事件为MonkeyKeyEvent对象
-                            mDroppedKeyEvents++; //则丢弃的事件增加1
+                            mDroppedKeyEvents++; //则表示丢弃的Key事件的实例变量增加1
                         } else if (ev instanceof MonkeyMotionEvent) { //若事件为MonkeyMotionEvent
                             mDroppedPointerEvents++;  //则丢弃的mDroppedPointerEvents事件增加1
                         } else if (ev instanceof MonkeyFlipEvent) {
-                            mDroppedFlipEvents++;
+                            mDroppedFlipEvents++; //如果事件是MonkeyFlipEvent对象，则mDroppedFlipEvents增加1
                         } else if (ev instanceof MonkeyRotationEvent) {
-                            mDroppedRotationEvents++;
+                            mDroppedRotationEvents++; //如果事件是MonkeyRotationEvent对象，则mDroppedRotationEvents增加1
                         }
-                    } else if (injectCode == MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION) { //注入事件时，发生错误
-                        systemCrashed = true; //说明操作系统发生崩溃，可能SystemServer进程重启
-                        Logger.err.println("** Error: RemoteException while injecting event."); //此时标准错误流输出一条，注入事件的事件的时候，远程服务发生错误
+                    } else if (injectCode == MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION) { //注入事件时，发生系统服务错误
+                        systemCrashed = true; //说明操作系统坑爹发生崩溃，因为发生了系统服务错误
+                        Logger.err.println("** Error: RemoteException while injecting event."); //此时标准错误流输出一条，注入事件的时候，远程服务发生错误
                     } else if (injectCode == MonkeyEvent.INJECT_ERROR_SECURITY_EXCEPTION) {  //这是因为安全问题，未注入事件
-                        systemCrashed = !mIgnoreSecurityExceptions; //如果命令行参数设置忽略参数，则不算系统出现错误
+                        systemCrashed = !mIgnoreSecurityExceptions; //如果命令行参数设置忽略参数，则不算系统出现错误，否则也算操作系统错误
                         if (systemCrashed) {
                             Logger.err.println("** Error: SecurityException while injecting event."); //标准错误流输出日志，表明注入事件时，发生系统安全错误
                         }
                     }
 
                     // Don't count throttling as an event.
-                    if (!(ev instanceof MonkeyThrottleEvent)) { //只有不是MonkeyThrottleEvent事件对象时，才计算总的次数，完美的将间隔事件忽略掉了
-                        eventCounter++;
-                        if (mCountEvents) {
-                            cycleCounter++;
+                    if (!(ev instanceof MonkeyThrottleEvent)) { //只要不是MonkeyThrottleEvent事件对象，就会累加次数，完美的将间隔事件忽略掉
+                        eventCounter++; //事件总数增加1
+                        if (mCountEvents) { //是否需要计算循环的次数
+                            cycleCounter++;  //循环次数加1
                         }
                     }
                 } else { //这是从双向链表中，没有提取到事件对象的情况，厉害，这里基本走不到……牛逼，这个调试方法好
-                    if (!mCountEvents) { //如果不需要计算事件数量
+                    if (!mCountEvents) { //如果不需要统计循环的执行次数
                         cycleCounter++; //循环次数增加1
-                        writeScriptLog(cycleCounter); //把循环数量写入脚本文件
+                        writeScriptLog(cycleCounter); //把循环次数写入脚本文件
                         //Capture the bugreport after n iteration
                         if (mGetPeriodicBugreport) { //这是处理呢
                             if ((cycleCounter % mBugreportFrequency) == 0) {
@@ -1335,12 +1338,12 @@ public class Monkey {
                         break;
                     }
                 }
-                //每完整的循环执行一次，Monkey对象锁会释放掉，不然别人哪有机会……
+                //（理解错误，每次修饰的代码块结束后，既会释放Monkey对象锁）
             }
         } catch (RuntimeException e) {
             Logger.error("** Error: A RuntimeException occurred:", e); //捕获到运行时异常，标准错误流输出结果，以及在标准错误流中打印异常对象的调用堆栈信息
         }
-        Logger.out.println("Events injected: " + eventCounter); //当系统出现错误，或者事件数量到了，标准输出流中输出事件数
+        Logger.out.println("Events injected: " + eventCounter); //当系统出现错误，或者事件数量到了，在标准输出流中输出事件数
         return eventCounter; //返回注入的事件数
     }
 
@@ -1368,7 +1371,7 @@ public class Monkey {
     /**
      * Watch for appearance of new tombstone files, which indicate native
      * crashes.
-     * 检查native崩溃的方法，检查tobstones文件的数量，每执行一个事件都会检查一下文件数量
+     * 检查native崩溃的方法，直接检查tobstones文件的数量，每执行一个事件都会检查一下文件数量
      * @return Returns true if new files have appeared in the list
      */
     private boolean checkNativeCrashes() {
@@ -1509,8 +1512,8 @@ public class Monkey {
         try {
             result = Long.parseLong(nextOptionData()); //费心了，转成long，如果不能转换
         } catch (NumberFormatException e) { //这里捕获不能转换为数字的异常（说明字符串不是数字）
-            Logger.err.println("** Error: " + opt + " is not a number");
-            throw e;
+            Logger.err.println("** Error: " + opt + " is not a number"); //先在标准错误中打印日志
+            throw e;  //接着继续将异常对象抛出去
         }
         return result;
     }
@@ -1563,6 +1566,6 @@ public class Monkey {
         usage.append("              [--periodic-bugreport]\n");
         usage.append("              [--permission-target-system]\n");
         usage.append("              COUNT\n");
-        Logger.err.println(usage.toString());
+        Logger.err.println(usage.toString()); //向标准错误流中写入文本，默认打印在屏幕上
     }
 }

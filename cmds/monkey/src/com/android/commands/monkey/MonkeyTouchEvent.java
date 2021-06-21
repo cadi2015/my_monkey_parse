@@ -21,7 +21,7 @@ import android.view.InputDevice;
 
 /**
  * monkey touch event
- * 触摸事件
+ * 触摸事件，同样继承于MonkeyMotionEvent
  */
 public class MonkeyTouchEvent extends MonkeyMotionEvent {
     /**

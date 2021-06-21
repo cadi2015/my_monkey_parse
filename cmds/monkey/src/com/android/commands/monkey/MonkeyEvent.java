@@ -25,19 +25,19 @@ import android.view.IWindowManager;
  * 程序中描述了8个事件，不过对于用户来说是不一样的……
  */
 public abstract class MonkeyEvent {
-    protected int eventType; //每个事件对象持有的事件类型，表示事件类型
-    public static final int EVENT_TYPE_KEY = 0; //此常量值表示KEY事件，第一个
-    public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件，第二个
-    public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL，第三个
-    public static final int EVENT_TYPE_ROTATION = 3;  // Screen rotation，第四个
-    public static final int EVENT_TYPE_ACTIVITY = 4; //第五个
-    public static final int EVENT_TYPE_FLIP = 5; // Keyboard flip 第五个
-    public static final int EVENT_TYPE_THROTTLE = 6; //延迟也算一个事件，只不过什么也没做而已，有道理 第六个
-    public static final int EVENT_TYPE_PERMISSION = 7; //第七个
-    public static final int EVENT_TYPE_NOOP = 8; //第八个
+    protected int eventType; //MonkeyEvent对象持有的事件类型
+    public static final int EVENT_TYPE_KEY = 0; //此常量值表示KEY事件，第1个
+    public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件，第2个
+    public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL，第3个
+    public static final int EVENT_TYPE_ROTATION = 3;  // Screen rotation，第4个
+    public static final int EVENT_TYPE_ACTIVITY = 4; //第5个
+    public static final int EVENT_TYPE_FLIP = 5; // Keyboard flip 第6个
+    public static final int EVENT_TYPE_THROTTLE = 6; //延迟也算一个事件，只不过什么也没做而已，有道理 第7个
+    public static final int EVENT_TYPE_PERMISSION = 7; //第8个
+    public static final int EVENT_TYPE_NOOP = 8; //第9个
 
-    public static final int INJECT_SUCCESS = 1; //表示注入事件成功的提示码，为1
-    public static final int INJECT_FAIL = 0; //表示注入事件失败的提示码，为0
+    public static final int INJECT_SUCCESS = 1; //表示注入事件成功的提示码，常量值为1
+    public static final int INJECT_FAIL = 0; //表示注入事件失败的提示码，常量值为0
 
     // error code for remote exception during injection
     public static final int INJECT_ERROR_REMOTE_EXCEPTION = -1; //表示远程服务出错的错误码，父类中定义（所有事件通用）
@@ -58,6 +58,7 @@ public abstract class MonkeyEvent {
     /**
      * @return true if it is safe to throttle after this event, and false otherwise.
      * 不是所有事件都支持中间可以插入一个停留的间隔时间的！所以才有这个方法
+     *  不支持的可以重写此方法，主要用于添加事件时使用
      */
     public boolean isThrottlable() {
         return true;
@@ -65,7 +66,7 @@ public abstract class MonkeyEvent {
 
 
     /**
-     * a method for injecting event
+     * a method for injecting event 该方法用于执行事件，建议使用WMS系统服务和AMS系统服务，建议函数用日志开关（当然子类可以不使用）
      * @param iwm wires to current window manager
      * @param iam wires to current activity manager
      * @param verbose a log switch

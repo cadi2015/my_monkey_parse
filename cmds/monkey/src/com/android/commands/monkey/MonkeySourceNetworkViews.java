@@ -173,26 +173,28 @@ public class MonkeySourceNetworkViews {
     /**
      * Command to list all possible view ids for the given application.
      * This lists all view ids regardless if they are on screen or not.
+     * 看看ListView命令是怎么解析的，除了在MonkeySourceNetwork中，还在这里处理传递过来来的命令行参数
      */
     public static class ListViewsCommand implements MonkeyCommand {
         //listviews
+        //单独的一行命令行值，即listviews
         public MonkeyCommandReturn translateCommand(List<String> command,
                                                     CommandQueue queue) {
-            AccessibilityNodeInfo node = sUiTestAutomationBridge.getRootInActiveWindow(); //View树的根节点对象
+            AccessibilityNodeInfo node = sUiTestAutomationBridge.getRootInActiveWindow(); //View树的根节点对象，通过UiAutomation对象获取
             /* Occasionally the API will generate an event with no source, which is essentially the
              * same as it generating no event at all */
-            if (node == null) {
-                return new MonkeyCommandReturn(false, NO_ACCESSIBILITY_EVENT);
+            if (node == null) { //说明没有获取到View树的根节点对象
+                return new MonkeyCommandReturn(false, NO_ACCESSIBILITY_EVENT); //返回MonkeyCommandReturn对象，用于调试……
             }
             String packageName = node.getPackageName().toString(); //获取View树所在的包名
             try{
-                Class<?> klass;
+                Class<?> klass; //创建Class的局部变量
                 ApplicationInfo appInfo = sPm.getApplicationInfo(packageName, 0,
-                        ActivityManager.getCurrentUser()); //通过PMS获取应用的细腻些
-                klass = getIdClass(packageName, appInfo.sourceDir); //获得一个类，通过包名和ApplicationInfo的sourceDir可以获得一个生命类呢？
+                        ActivityManager.getCurrentUser()); //通过PMS系统服务，获取应用的信息
+                klass = getIdClass(packageName, appInfo.sourceDir); //获得一个类，通过包名和ApplicationInfo的sourceDir可以获得一个id类，难道是R类吗？
                 StringBuilder fieldBuilder = new StringBuilder();
                 Field[] fields = klass.getFields();
-                for (Field field : fields) {
+                for (Field field : fields) { //遍历所有字段
                     fieldBuilder.append(field.getName() + " ");
                 }
                 return new MonkeyCommandReturn(true, fieldBuilder.toString());
