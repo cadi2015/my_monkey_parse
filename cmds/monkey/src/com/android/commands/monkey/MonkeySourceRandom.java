@@ -88,7 +88,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     };
 
     /**
-     * 公开常量
+     * 公开常量（MonkeySourceRandom下随机生成的事件，各自的事件比例存储在一个数组中，将下标保留在这里）
      * 某个事件的事件比例在数组中的下标值
      * 最后一个FACTORZ_COUNT表示可以调节的事件比例数量
      */
@@ -96,7 +96,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     public static final int FACTOR_MOTION       = 1; //MOTION事件比例的下标
     public static final int FACTOR_PINCHZOOM    = 2; //PINCHZOOM事件比例的下标
     public static final int FACTOR_TRACKBALL    = 3; //TRACKBALL事件比例的下标
-    public static final int FACTOR_ROTATION     = 4;
+    public static final int FACTOR_ROTATION     = 4; //ROTATION事件比例的下标
     public static final int FACTOR_PERMISSION   = 5;
     public static final int FACTOR_NAV          = 6;
     public static final int FACTOR_MAJORNAV     = 7;
@@ -107,11 +107,11 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     public static final int FACTORZ_COUNT       = 12;    // should be last+1  使用常量，是因为Monkey持有了一个数组对象，而MonkeySourceRandom中也持有了一个数组对象，它俩的长度一致
 
     /**
-     * 私有的常量
+     * 私有常量
      * 表示手势动作
      * 1、点
      * 2、拽
-     * 3、多指所方法
+     * 3、多指
      */
     private static final int GESTURE_TAP = 0;
     private static final int GESTURE_DRAG = 1;
@@ -120,14 +120,14 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     /** percentages for each type of event.  These will be remapped to working
      * values after we read any optional values.
      **/
-    private float[] mFactors = new float[FACTORZ_COUNT]; //MonkeySourceRandom对象持有一个数组对象，用于保存所有事件出现的比例，不同的事件所占比例存储在不同的下标值
-    private List<ComponentName> mMainApps; //持有的List对象，用于保存需要操作的App信息
-    private int mEventCount = 0;  //total number of events generated so far //持有的事件数量
+    private float[] mFactors = new float[FACTORZ_COUNT]; //MonkeySourceRandom对象持有一个数组对象，用于保存每个事件的事件比例，不同的事件比例存储在数组不同的下标中
+    private List<ComponentName> mMainApps; //MonkeySourceRandom对象持有的List对象，用于保存需要操作的App信息
+    private int mEventCount = 0;  //total number of events generated so far //MonkeySourceRandom对象持有的事件数量，但是没有使用
     private MonkeyEventQueue mQ; //MonkeySourceRandom对象持有的双向链表，用于存储每个事件对象（MonkeyEvent对象）
-    private Random mRandom; //持有的Random对象
-    private int mVerbose = 0; //持有的日志等级
-    private long mThrottle = 0; //持有的事件延迟时间，但是没有使用……大牛也会犯错……
-    private MonkeyPermissionUtil mPermissionUtil; //持有的权限工具对象
+    private Random mRandom; //MonkeySourceRandom对象持有的Random对象
+    private int mVerbose = 0; //MonkeySourceRandom对象持有的日志等级
+    private long mThrottle = 0; //MonkeySourceRandom对象持有的事件延迟时间，但是没有使用……大牛也会犯错……
+    private MonkeyPermissionUtil mPermissionUtil; //MonkeySourceRandom对象持有的权限工具对象
 
     private boolean mKeyboardOpen = false; //持有的键盘是否打开的标志位
 
@@ -189,7 +189,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * Adjust the percentages (after applying user values) and then normalize to a 0..1 scale.
-     *  检查与调整每个事件的比例值
+     *  检查与调整事件的比例值
      *  返回值表示事件比例是否正确，true 表示正确
      */
     private boolean adjustEventFactors() {
@@ -228,7 +228,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
             if (mFactors[i] <= 0.0f) {   // user values are zero or negative
                 mFactors[i] = -mFactors[i]; //把用户设置的负值全部修复成整数值
             } else {
-                mFactors[i] *= defaultsAdjustment; //把用户没有设置的值全部乘以一个比例值（我那里因为个人设置的事件比例未100%，所以，这会让剩余的默认事件比例值全部为0）
+                mFactors[i] *= defaultsAdjustment; //把用户没有设置的值全部乘以一个比例值（我那里因为个人设置的事件比例为100%，所以，这会让剩余的默认事件比例值全部为0）
             }
         }
 
@@ -251,7 +251,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         float sum = 0.0f;  //这里没看懂^^^，比如touch是20，motion是10
         for (int i = 0; i < FACTORZ_COUNT; ++i) {
             sum += mFactors[i] / 100.0f; //调整为百分比值
-            mFactors[i] = sum; //这里赋值时，touch为0.2，motion则是0.3……我也是醉了，这个事件比例是不是bug？
+            mFactors[i] = sum; //这里赋值时，touch为0.2，motion则是0.3……我也是醉了，这个事件比例是不是bug？不是bug，刻意如此
         }
         return true;
     }
@@ -311,13 +311,13 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      * Generates a random motion event. This method counts a down, move, and up as multiple events.
      *
      * TODO:  Test & fix the selectors when non-zero percentages
-     * TODO:  Longpress.
-     * TODO:  Fling.
+     * TODO:  Longpress. 长按没有做
+     * TODO:  Fling. 甩出去的动作没做
      * TODO:  Meta state
      * TODO:  More useful than the random walk here would be to pick a single random direction
      * and distance, and divvy it up into a random number of segments.  (This would serve to
      * generate fling gestures, which are important).
-     * 用于构造点事件
+     * 用于构造事件（3种）点击、滑动、缩放
      * @param random Random number source for positioning 随机数量
      * @param gesture The gesture to perform. 需要的手势
      *
@@ -467,55 +467,55 @@ public class MonkeySourceRandom implements MonkeyEventSource {
 
     /**
      * generate a random event based on mFactor
-     * 按照基础比例，构造随机事件(重要）
+     * 按照基础比例去构造不同的事件
      */
     private void generateEvents() {
         float cls = mRandom.nextFloat(); //先通过Random对象创建一个随机的float数
-        int lastKey = 0; //用于记录最后一次的key
+        int lastKey = 0; //用于记录最后一次的key，默认值为0
 
         if (cls < mFactors[FACTOR_TOUCH]) { //如果随机值小于TOUCH的比例值，比如比例值是30，那么此时会走这里
-            generatePointerEvent(mRandom, GESTURE_TAP); //构造点事件，进去看看怎么构造的事件
-            return; //方法结束……如果TOUCH大于MOTION的话，岂不是MOTION一辈子没有机会了？
-        } else if (cls < mFactors[FACTOR_MOTION]) { //比如这里是20，这里一辈子也没机会执行了
-            generatePointerEvent(mRandom, GESTURE_DRAG);
-            return;
-        } else if (cls < mFactors[FACTOR_PINCHZOOM]) {
+            generatePointerEvent(mRandom, GESTURE_TAP); //构造Pointer事件（点击事件）
+            return; //方法结束…说明构造事件结束…如果TOUCH比例大于MOTION的话，岂不是MOTION一辈子没有机会了？
+        } else if (cls < mFactors[FACTOR_MOTION]) { //比如这里是20，这里一辈子也没机会执行了（待定，觉得作者会对比例值做二次更新）
+            generatePointerEvent(mRandom, GESTURE_DRAG); //构建拖拽事件
+            return; //构建完毕
+        } else if (cls < mFactors[FACTOR_PINCHZOOM]) { //构建缩放事件
             generatePointerEvent(mRandom, GESTURE_PINCH_OR_ZOOM);
-            return;
-        } else if (cls < mFactors[FACTOR_TRACKBALL]) {
+            return; //构建完毕
+        } else if (cls < mFactors[FACTOR_TRACKBALL]) { //构建轨迹球事件
             generateTrackballEvent(mRandom);
-            return;
-        } else if (cls < mFactors[FACTOR_ROTATION]) {
+            return; //构建完毕
+        } else if (cls < mFactors[FACTOR_ROTATION]) { //构建旋转事件
             generateRotationEvent(mRandom);
-            return;
-        } else if (cls < mFactors[FACTOR_PERMISSION]) {
+            return; //构建完毕
+        } else if (cls < mFactors[FACTOR_PERMISSION]) { //构建权限事件
             mQ.add(mPermissionUtil.generateRandomPermissionEvent(mRandom));
-            return;
+            return; //构建完毕
         }
 
         // The remaining event categories are injected as key events
-        for (;;) {
-            if (cls < mFactors[FACTOR_NAV]) {
+        for (;;) { //一直重试是为了防止出现POWER事件、
+            if (cls < mFactors[FACTOR_NAV]) { //构建导航键事件
                 lastKey = NAV_KEYS[mRandom.nextInt(NAV_KEYS.length)];
-            } else if (cls < mFactors[FACTOR_MAJORNAV]) {
+            } else if (cls < mFactors[FACTOR_MAJORNAV]) {  //构建主要导航键事件
                 lastKey = MAJOR_NAV_KEYS[mRandom.nextInt(MAJOR_NAV_KEYS.length)];
             } else if (cls < mFactors[FACTOR_SYSOPS]) {
                 lastKey = SYS_KEYS[mRandom.nextInt(SYS_KEYS.length)];
-            } else if (cls < mFactors[FACTOR_APPSWITCH]) { //原来这里是切换另外App的比例，不是切换单个应用的Activity的……，尴尬死了
+            } else if (cls < mFactors[FACTOR_APPSWITCH]) { //构建某个根Activity事件，注意这里不是切换单个应用哪个Activity的事件……
                 MonkeyActivityEvent e = new MonkeyActivityEvent(mMainApps.get(
                         mRandom.nextInt(mMainApps.size())));
                 mQ.addLast(e);
-                return;
-            } else if (cls < mFactors[FACTOR_FLIP]) {
+                return; //构建完毕
+            } else if (cls < mFactors[FACTOR_FLIP]) { //构建键盘事件
                 MonkeyFlipEvent e = new MonkeyFlipEvent(mKeyboardOpen);
                 mKeyboardOpen = !mKeyboardOpen;
                 mQ.addLast(e);
-                return;
+                return; //构建完毕
             } else {
-                lastKey = 1 + mRandom.nextInt(KeyEvent.getMaxKeyCode() - 1);
+                lastKey = 1 + mRandom.nextInt(KeyEvent.getMaxKeyCode() - 1); //使用一个随机的KeyCode值，赋值给表示最后一个实体按键事件
             }
 
-            if (lastKey != KeyEvent.KEYCODE_POWER
+            if (lastKey != KeyEvent.KEYCODE_POWER //如果生成的按键不是POWER、ENDCALL、SLEEP、SOFT_SLEEP，且keycode值在PHYSICAL_KEY_EXISTS标记为true，才会停止构造事件
                     && lastKey != KeyEvent.KEYCODE_ENDCALL
                     && lastKey != KeyEvent.KEYCODE_SLEEP
                     && lastKey != KeyEvent.KEYCODE_SOFT_SLEEP
@@ -556,7 +556,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      */
     public void generateActivity() {
         MonkeyActivityEvent e = new MonkeyActivityEvent(mMainApps.get(
-                mRandom.nextInt(mMainApps.size()))); //从持有的可用Activity中，随机选择一个ComponentName，创建一个MonkeyActivityEvent对象，随机范围是主Activity的数量，要是1个，那就是1个……
+                mRandom.nextInt(mMainApps.size()))); //MonkeySourceRandom对象持有的可用Activity的List对象中，随机选择一个ComponentName，创建一个MonkeyActivityEvent对象，随机范围是主Activity的数量，要是1个，那就是1个……
         mQ.addLast(e); //将事件添加到双向链表的尾部
     }
 
@@ -567,7 +567,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      */
     public MonkeyEvent getNextEvent() {
         if (mQ.isEmpty()) { //当双向链表中没有元素时，说明没有可用的事件
-            generateEvents(); //构造事件，可能构造一个，也可能构造多个
+            generateEvents(); //构造事件，可能构造一个，也可能构造多个，构造的事件对象会添加到mQ中
         }
         mEventCount++; //MonkeySourceRandom对象持有的事件数量增加1，表示已经提取出的事件数量
         MonkeyEvent e = mQ.getFirst(); //获取双向链表中的第一个元素，赋值给局部变量e保存

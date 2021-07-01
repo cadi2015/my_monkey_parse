@@ -25,7 +25,7 @@ import android.view.IWindowManager;
  * 间隔事件，用于控制线程的连续执行
  */
 public class MonkeyWaitEvent extends MonkeyEvent {
-    private long mWaitTime; //持有的时间，用于控制线程的停顿时间
+    private long mWaitTime; //MonkeyWaitEvent对象持有的时间，用于控制线程的停顿时间
 
     /**
      * 创建MonkeyWaitEvent对象
@@ -45,14 +45,14 @@ public class MonkeyWaitEvent extends MonkeyEvent {
      */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        if (verbose > 1) { //只要大于1，才会将日志输出到标准输出流中
+        if (verbose > 1) { //只要verbose大于1，才会将日志输出到标准输出流中（默认我们在屏幕中看到）
             Logger.out.println("Wait Event for " + mWaitTime + " milliseconds"); //向标准输出流中输出日志
         }
         try {
-            Thread.sleep(mWaitTime); //线程休眠指定的时间，使用Thread的静态方法sleep（）实现，单位当然是毫秒
-        } catch (InterruptedException e1) { //如果线程休眠过程中被中断
-            Logger.out.println("** Monkey interrupted in sleep.");
-            return MonkeyEvent.INJECT_FAIL; //返回注入事件失败
+            Thread.sleep(mWaitTime); //线程休眠指定的时间，直接使用Thread的静态方法sleep（）实现，单位当然是毫秒，
+        } catch (InterruptedException e1) { //如果线程休眠过程中发生中断，会在这里
+            Logger.out.println("** Monkey interrupted in sleep."); //告知用户Monkey线程在睡眠中，被中断了……
+            return MonkeyEvent.INJECT_FAIL; //返回注入事件失败的编码
         }
 
         return MonkeyEvent.INJECT_SUCCESS; //返回注入事件成功

@@ -36,15 +36,15 @@ import java.util.Random;
 
 /**
  * Utility class that encapsulates runtime permission related methods for monkey
- *
+ * Monkey使用的权限工具
  */
 public class MonkeyPermissionUtil {
 
-    private static final String PERMISSION_PREFIX = "android.permission.";
-    private static final String PERMISSION_GROUP_PREFIX = "android.permission-group.";
+    private static final String PERMISSION_PREFIX = "android.permission."; //权限前缀
+    private static final String PERMISSION_GROUP_PREFIX = "android.permission-group."; //权限组前缀
 
     // from com.android.packageinstaller.permission.utils
-    private static final String[] MODERN_PERMISSION_GROUPS = {
+    private static final String[] MODERN_PERMISSION_GROUPS = { //现代需要的权限组，好多……
             Manifest.permission_group.CALENDAR, Manifest.permission_group.CAMERA,
             Manifest.permission_group.CONTACTS, Manifest.permission_group.LOCATION,
             Manifest.permission_group.SENSORS, Manifest.permission_group.SMS,
@@ -53,6 +53,12 @@ public class MonkeyPermissionUtil {
     };
 
     // from com.android.packageinstaller.permission.utils
+
+    /**
+     *
+     * @param name 权限组字符串名称
+     * @return 是否为现代权限组
+     */
     private static boolean isModernPermissionGroup(String name) {
         for (String modernGroup : MODERN_PERMISSION_GROUPS) {
             if (modernGroup.equals(name)) {
@@ -66,43 +72,50 @@ public class MonkeyPermissionUtil {
      * actual list of packages to target, with invalid packages excluded, and may optionally include
      * system packages
      */
-    private List<String> mTargetedPackages;
+    private List<String> mTargetedPackages; //持有的所有目标包
     /** if we should target system packages regardless if they are listed */
-    private boolean mTargetSystemPackages;
-    private IPackageManager mPm;
-    private final IPermissionManager mPermManager;
+    private boolean mTargetSystemPackages; //持有的是否为系统包
+    private IPackageManager mPm; //PMS系统服务
+    private final IPermissionManager mPermManager; //PermissionManager权限
 
     /** keep track of runtime permissions requested for each package targeted */
-    private Map<String, List<PermissionInfo>> mPermissionMap; //持有的Map，Key为String，Value为List对象
+    private Map<String, List<PermissionInfo>> mPermissionMap; //持有的Map，Key为String，Value为List对象，list的每个元素PermissionInfo对象
 
+    /**
+     * 创建MonkeyPermissionUtil对象
+     */
     public MonkeyPermissionUtil() {
-        mPm = IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
+        mPm = IPackageManager.Stub.asInterface(ServiceManager.getService("package")); //初始化PMS系统的本地Binder
         mPermManager =
-                IPermissionManager.Stub.asInterface(ServiceManager.getService("permissionmgr"));
+                IPermissionManager.Stub.asInterface(ServiceManager.getService("permissionmgr")); //初始化permissionmgr系统服务的本地Binder
     }
 
+    /**
+     * 设置是否需要系统应用
+     * @param targetSystemPackages
+     */
     public void setTargetSystemPackages(boolean targetSystemPackages) {
         mTargetSystemPackages = targetSystemPackages;
     }
 
     /**
      * Decide if a package should be targeted by permission monkey
-     * @param info
-     * @return
+     * @param info 包信息对象
+     * @return 是否为目标包
      */
     private boolean shouldTargetPackage(PackageInfo info) {
         // target if permitted by white listing / black listing rules
         if (MonkeyUtils.getPackageFilter().checkEnteringPackage(info.packageName)) {
-            return true;
+            return true; //如果是允许进入的包，则直接返回true，不管别的事情
         }
-        if (mTargetSystemPackages
+        if (mTargetSystemPackages //如果是系统应用、且不是无效包、应用的flags与FLAG_SYSTEM位与不等于0，直接返回true
                 // not explicitly black listed
                 && !MonkeyUtils.getPackageFilter().isPackageInvalid(info.packageName)
                 // is a system app
                 && (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
             return true;
         }
-        return false;
+        return false; //
     }
 
     private boolean shouldTargetPermission(String pkg, PermissionInfo pi) throws RemoteException {
@@ -119,14 +132,14 @@ public class MonkeyPermissionUtil {
      * @return
      */
     public boolean populatePermissionsMapping() {
-        mPermissionMap = new HashMap<>();
+        mPermissionMap = new HashMap<>(); //创建HashMap对象
         try {
             List<?> pkgInfos = mPm.getInstalledPackages(
-                    PackageManager.GET_PERMISSIONS, UserHandle.myUserId()).getList(); //所有已安装包的信息
-            for (Object o : pkgInfos) {
-                PackageInfo info = (PackageInfo)o;
+                    PackageManager.GET_PERMISSIONS, UserHandle.myUserId()).getList(); //通过PMS获取所有已安装包的信息
+            for (Object o : pkgInfos) { //遍历所有安装包信息
+                PackageInfo info = (PackageInfo)o; //向下转型为PackageInfo对象
                 if (!shouldTargetPackage(info)) {
-                    continue;
+                    continue; //如果不是目标包，直接中断一次循环
                 }
                 List<PermissionInfo> permissions = new ArrayList<>();
                 if (info.applicationInfo.targetSdkVersion <= Build.VERSION_CODES.LOLLIPOP_MR1) {

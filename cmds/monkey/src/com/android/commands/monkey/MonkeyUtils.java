@@ -23,21 +23,26 @@ import java.util.Set;
 
 /**
  * Misc utilities.
- * 第一次见工具类使用abstract修饰，拽，牛逼
+ * 第一次见工具类使用abstract修饰，拽，牛逼（当时有大佬不建议这么使用）
  */
 public abstract class MonkeyUtils {
 
     private static final java.util.Date DATE = new java.util.Date(); //MonkeyUtils类持有的Date对象
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
         "yyyy-MM-dd HH:mm:ss.SSS "); //MonkeyUtils类持有的SimpleDateFormat对象
-    private static PackageFilter sFilter;
+    private static PackageFilter sFilter; //MonkeyUtils类持有的PackageFilter对象
 
+    /**
+     * 私有构造方法，禁止通过new方式创建对象
+     */
     private MonkeyUtils() {
     }
 
     /**
      * Return calendar time in pretty string.
      * 返回一个格式化后的字符串时间
+     * 同步方法，只有获取到MonkeyUtils的Class对象的线程，才能执行该方法
+     * 共享变量为DATE、DATE_FORMATTER
      */
     public static synchronized String toCalendarTime(long time) {
         DATE.setTime(time);
@@ -45,7 +50,7 @@ public abstract class MonkeyUtils {
     }
 
     /**
-     * 获取于PackageFilter对象
+     * 获取创建的PackageFilter对象
      * @return
      */
     public static PackageFilter getPackageFilter() {
@@ -61,46 +66,60 @@ public abstract class MonkeyUtils {
      * 另一个set保存无效的包名
      */
     public static class PackageFilter {
-        private Set<String> mValidPackages = new HashSet<>(); //持有一个，用于保存有效包名的Set对象
-        private Set<String> mInvalidPackages = new HashSet<>(); //持有另外一个，用于持有无效包名的Set对象
+        private Set<String> mValidPackages = new HashSet<>(); //PackageFilter对象持有一个用于保存有效包名的Set对象
+        private Set<String> mInvalidPackages = new HashSet<>(); //PackageFilter对象持有一个用于保存无效包名的Set对象
 
         /**
-         * 私有构造方法，不允许通过构造方法创建对象，但是同一个类中的外部类可以，牛逼！思路清晰,所谓只在一个类中使用……经典
+         * 私有构造方法，不允许通过构造方法创建对象，但是同一个类中的外部类可以，牛逼！思路清晰,所谓只在一个类中使用的静态内部类……经典
          */
         private PackageFilter() {
         }
 
         /**
-         * 将某个Set对象中持有的所有元素，全部添加到mValidPackages集合中
+         * 将某个Set对象中持有的所有元素，全部添加到mValidPackages集合中，相当于交给PackageFilter对象持有（间接持有）
          * @param validPackages Set对象
          */
         public void addValidPackages(Set<String> validPackages) {
             mValidPackages.addAll(validPackages);
         }
 
+        /**
+         * 将某个Set对象中持有的所有元素，全部添加到mInvalidPackages集合中，相当于交给PackageFilter对象持有（间接持有）
+         * @param invalidPackages
+         */
         public void addInvalidPackages(Set<String> invalidPackages) {
             mInvalidPackages.addAll(invalidPackages);
         }
 
         /**
-         * 当Set中持有的元素大于0时，说明存在有效的包名
+         * 当Set中持有的元素大于0时，说明存储着有效的包名
          * @return 返回是否存在有效包
          */
         public boolean hasValidPackages() {
             return mValidPackages.size() > 0;
         }
 
+        /**
+         * 检查是否包含某个有效包
+         * @param pkg 包名
+         * @return 是否包含某个有效包
+         */
         public boolean isPackageValid(String pkg) {
             return mValidPackages.contains(pkg);
         }
 
+        /**
+         * 检查包是否为无效的
+         * @param pkg 包名
+         * @return true表示无效包
+         */
         public boolean isPackageInvalid(String pkg) {
             return mInvalidPackages.contains(pkg);
         }
 
         /**
          * Check whether we should run against the given package.
-         * 用于检查App是否允许启动的方法，通过包名检查
+         * 用于检查App是否允许启动，通过包名检查，该值会间接反馈到AMS那里
          * @param pkg The package name. 应用的包名
          * @return Returns true if we should run against pkg. true，表示可以允许启动
          */
@@ -114,23 +133,24 @@ public abstract class MonkeyUtils {
                     return false; //表示在允许启动的集合中没有对应的包名
                 }
             }
-            return true; //无效与有效的集合里，都没有设置过的情况，表示允许应用启动
+            return true; //在无效与有效的集合里，都没有设置过的包，就是允许启动的App
         }
 
         /**
          * 遍历两个set中的包名，并输出日志
          * 1、有效包名
          * 2、无效包名
+         * 调试用的……
          */
         public void dump() {
             if (mValidPackages.size() > 0) {
-                Iterator<String> it = mValidPackages.iterator();
-                while (it.hasNext()) {
-                    Logger.out.println(":AllowPackage: " + it.next());
+                Iterator<String> it = mValidPackages.iterator(); //获取Set对象的迭代器对象
+                while (it.hasNext()) { //检查是否有元素没有遍历
+                    Logger.out.println(":AllowPackage: " + it.next()); //向标准输出流输出日志
                 }
             }
             if (mInvalidPackages.size() > 0) {
-                Iterator<String> it = mInvalidPackages.iterator(); //获取迭代器对象
+                Iterator<String> it = mInvalidPackages.iterator(); //获取无效包名Set对象的迭代器对象
                 while (it.hasNext()) { //如果存在元素
                     Logger.out.println(":DisallowPackage: " + it.next()); //输出日志
                 }

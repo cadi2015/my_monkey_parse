@@ -29,8 +29,8 @@ import android.view.IWindowManager;
 
 /**
  * monkey activity event
- * 表示操作Activity的事件，依赖于AM启动Activity
- * 两种创建对象的方式，根据需求，创建不同初始化参数的对象
+ * 表示操作Activity的事件，依赖于AMS启动Activity
+ * 两种创建对象的方式，根据需求，创建不同初始化的对象
  */
 public class MonkeyActivityEvent extends MonkeyEvent {
     private ComponentName mApp; //持有的ComponentName对象（目前是用来启动每个App的Launcher Activity）
@@ -90,6 +90,7 @@ public class MonkeyActivityEvent extends MonkeyEvent {
         }
 
         try {
+            //需传入包名、Intent对象、当前用户
             iam.startActivityAsUserWithFeature(null, getPackageName(), null, intent, null, null,
                     null, 0, 0, null, null, ActivityManager.getCurrentUser()); //依靠AMS系统服务切换Activity，这个startActivityAsUserWithFeature方法完成Activity的启动
         } catch (RemoteException e) {
@@ -98,26 +99,27 @@ public class MonkeyActivityEvent extends MonkeyEvent {
         } catch (SecurityException e) {
             if (verbose > 0) {
                 Logger.out.println("** Permissions error starting activity "
-                        + intent.toUri(0));
+                        + intent.toUri(0)); //告知用户，出现了安全异常
             }
-            return MonkeyEvent.INJECT_ERROR_SECURITY_EXCEPTION; //表示因安全异常，导致的异常错误码
+            return MonkeyEvent.INJECT_ERROR_SECURITY_EXCEPTION; //表示因系统安全异常，导致的异常错误码
         }
-        return MonkeyEvent.INJECT_SUCCESS; //表示注入事件成功（成功启动Activity）
+        return MonkeyEvent.INJECT_SUCCESS; //表示注入事件成功（成功启动Activity），如果没有抛出RemoteException、或者SecurityException，事件注入就算成功
     }
 
     /**
      * Obtain the package name of the current process using the current UID. The package name has to
      * match the current UID in IActivityManager#startActivityAsUser to be allowed to start an
      * activity.
+     * 获取包名的方法
      */
     private static String getPackageName() {
         try {
             IPackageManager pm = IPackageManager.Stub.asInterface(
-                    ServiceManager.getService("package"));
+                    ServiceManager.getService("package")); //获取PMS系统服务的远程服务引用，这里其实可以使用Monkey类中已经获取到的系统服务Binder对象
             if (pm == null) {
                 return null;
             }
-            String[] packages = pm.getPackagesForUid(Binder.getCallingUid());
+            String[] packages = pm.getPackagesForUid(Binder.getCallingUid()); //这里获取的是当前调用uid的包名……，难道是Monkey的吗？有点懵，可以求证一下
             return packages != null ? packages[0] : null;
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with package manager!");

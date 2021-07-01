@@ -92,7 +92,7 @@ public class Monkey {
     private boolean mIgnoreCrashes; //是否忽略App层的崩溃，不然monkey进程会停止
 
     /** Ignore any not responding timeouts while running? */
-    private boolean mIgnoreTimeouts; //是否忽略运行超时？原来是ANR的选项
+    private boolean mIgnoreTimeouts; //是否忽略运行超时？原来是忽略任何ANR的选项
 
     /** Ignore security exceptions when launching activities */
     /** (The activity launch still fails, but we keep pluggin' away) */
@@ -299,7 +299,7 @@ public class Monkey {
          */
         private boolean isActivityStartingAllowed(Intent intent, String pkg) {
             if (MonkeyUtils.getPackageFilter().checkEnteringPackage(pkg)) {  //把包名传入进去，由PackagerFilter对象的checkEnteringPackage()方法检查应用能否启动
-                return true; //向调用者返回true，表示可以启动
+                return true; //向AMS返回true，表示可以启动
             }
             if (DEBUG_ALLOW_ANY_STARTS != 0) { //当开启了允许调试
                 return true;  //向调用者返回的为一直允许启动
@@ -388,7 +388,7 @@ public class Monkey {
                     return !mKillProcessAfterError; //这个值，是给AMS用的呀……默认值一定返回的是true啊，出现ANR，要求系统重启进程……
                 }
             }
-            return false; //当一个App进程出现崩溃后触发，当返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）
+            return false; //当一个App进程出现崩溃后触发，当返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）,AMS如何处理该进程……
         }
 
         /**
@@ -427,7 +427,7 @@ public class Monkey {
                         mReportProcessName = processName;
                     }
                 }
-                if (!mIgnoreTimeouts) { //如果没有设置忽略超时，原来ANR也得设置，卧槽，我设置没有？
+                if (!mIgnoreTimeouts) { //如果没有设置忽略超时，原来ANR也得设置，卧槽
                     synchronized (Monkey.this) { //与monkey主线程竞争Monkey对象锁，binder线程可能会阻塞在这里（那样AMS中的binder线程也会被阻塞吧，没错，看来Monkey主线程不能太累，会影响System_Server的执行（见袁辉辉篇)
                         mAbort = true; //Monkey程序是否中断的标志位
                     }
@@ -703,7 +703,7 @@ public class Monkey {
             return -3; //系统服务出错，会返回-3
         }
 
-        if (!getMainApps()) { //查找可启动的主Activity
+        if (!getMainApps()) { //查找系统中所有可启动的主Activity（每个App对应一个）
             return -4; //没有找到可用的主Activity，返回-4
         }
 
@@ -756,7 +756,7 @@ public class Monkey {
                 }
             }
 
-            // in random mode, we start with a random activity，随机模式中，建立随机的Activity
+            // in random mode, we start with a random activity，随机模式中，启动一个随机的Activity
             ((MonkeySourceRandom) mEventSource).generateActivity(); //生成Activity事件（首先启动Activity，这个没毛病）
         }
 
@@ -776,7 +776,7 @@ public class Monkey {
         mNetworkMonitor.start(); //开始监控网络,其实只是初始化一些时间NetworkMonitor对象持有的时间数据，它是一个Binder对象,其实在getSystemInterfaces（）方法中已经向AMS注册此Binder，AMS通过此Binder与Monkey进程通信网络情况
         int crashedAtCycle = 0; //保存执行Monkey过程中发现的崩溃数量
         try {
-            crashedAtCycle = runMonkeyCycles(); //主线程，执行最重要的runMonkeyCycles（）方法，返回值是发现的崩溃数量
+            crashedAtCycle = runMonkeyCycles(); //monkey主线程，执行最重要的runMonkeyCycles（）方法，返回值为发现的崩溃数量
         } finally {
             // Release the rotation lock if it's still held and restore the
             // original orientation. //执行完Monkey，会走finally
@@ -848,7 +848,7 @@ public class Monkey {
         }
 
         // report network stats
-        mNetworkMonitor.dump(); //输出一下网络的情况，到标准输出流中
+        mNetworkMonitor.dump(); //输出一下网络的情况，到标准输出流中，为啥对网络状态这么敏感……？而且是Monkey程序结束后
 
         if (crashedAtCycle < mCount - 1) {
             Logger.err.println("** System appears to have crashed at event " + crashedAtCycle
@@ -883,7 +883,7 @@ public class Monkey {
                 if (opt.equals("-s")) { //当单个命令行参数为-s时
                     mSeed = nextOptionLong("Seed"); //此Seed仅用作提示……牛逼，此时获取到的随机种子值，会交给Monkey对象持有的mSeed负责保存
                 } else if (opt.equals("-p")) {
-                    validPackages.add(nextOptionData()); //可以看到-p参数后面的包名，会放到一个Set集合中，天生去重
+                    validPackages.add(nextOptionData()); //可以看到-p参数后面的包名，会放到一个Set集合中，天生去重，当然也说明可以指定多个-p
                 } else if (opt.equals("-c")) {
                     mMainCategories.add(nextOptionData()); //-c参数后面的参数放到了一个list中
                 } else if (opt.equals("-v")) {
@@ -1089,14 +1089,14 @@ public class Monkey {
      * 初始化各种系统服务
      */
     private boolean getSystemInterfaces() {
-        mAm = ActivityManager.getService(); //获取AMS系统服务
+        mAm = ActivityManager.getService(); //获取AMS系统服务，这个API好简洁
         if (mAm == null) { //如果没有获取到AMS系统服务
             Logger.err.println("** Error: Unable to connect to activity manager; is the system "
                     + "running?"); //告知无法获取AMS服务，反问你系统到底有没有运行
             return false; //方法结束，直接返回false，表示获取所有系统服务失败
         }
 
-        mWm = IWindowManager.Stub.asInterface(ServiceManager.getService("window")); //获取WMS系统服务，这个跟AMS有啥区别？
+        mWm = IWindowManager.Stub.asInterface(ServiceManager.getService("window")); //获取WMS系统服务，注意ServiceManager的静态方法getService（）
         if (mWm == null) { //当没有获取到WMS系统服务
             Logger.err.println("** Error: Unable to connect to window manager; is the system "
                     + "running?");
@@ -1110,9 +1110,11 @@ public class Monkey {
             return false;
         }
 
+        //获取其他系统服务
+
         try {
             mAm.setActivityController(new ActivityController(), true);//向AMS注册一个Binder对象，AMS通过此Binder对象，可以与Monkey进程通信
-            mNetworkMonitor.register(mAm); //用于监听网络的Binder注册到AMS系统服务中
+            mNetworkMonitor.register(mAm); //用于监听网络的Binder注册到AMS系统服务中，不过这里是将AM的引用传递进去
         } catch (RemoteException e) {
             Logger.err.println("** Failed talking with activity manager!"); //AMS服务挂了……
             return false;
@@ -1130,7 +1132,7 @@ public class Monkey {
      */
     private boolean getMainApps() {
         try {
-            final int N = mMainCategories.size(); //获取Category的数量，默认是两个，通过-c的命令行参数可以添加
+            final int N = mMainCategories.size(); //获取Category的数量，默认是两个，通过-c的命令行参数可以添加，一个是CATEGORY_LAUNCHER、另一个是
             for (int i = 0; i < N; i++) { //遍历所有的Category
                 Intent intent = new Intent(Intent.ACTION_MAIN); //创建Intent对象
                 String category = mMainCategories.get(i); //获取List中的一个Category
@@ -1138,15 +1140,15 @@ public class Monkey {
                     intent.addCategory(category); //为Intent对象设置Category
                 }
                 List<ResolveInfo> mainApps = mPm.queryIntentActivities(intent, null, 0,
-                        ActivityManager.getCurrentUser()).getList(); //使用PMS系统服务的查询queryIntentActivities方法，用于查询所有当前用户可以使用的主Activity，只有App在Manifest文件中注册的，才能被查找到
+                        ActivityManager.getCurrentUser()).getList(); //使用PMS系统服务的查询queryIntentActivities（）方法，用于查询所有当前用户可以使用的主Activity，只有App在Manifest文件中注册的，才能被查找到
                 //返回的是一个List对象，元素为ResolveInfo对象
-                if (mainApps == null || mainApps.size() == 0) { //如果没有获取可以使用的主Activity
+                if (mainApps == null || mainApps.size() == 0) { //如果没有获取到可以使用的主Activity
                     Logger.err.println("// Warning: no activities found for category " + category); //标准错误流中输出日志
                     continue; //当前循环结束
                 }
                 if (mVerbose >= 2) { // very verbose
-                    Logger.out.println("// Selecting main activities from category " + category);
-                } //这里说明获取到可用的Activiy了，会输出一个日志
+                    Logger.out.println("// Selecting main activities from category " + category); //详细日志
+                } //这里说明获取到可用的Activity，会输出一个日志
                 final int NA = mainApps.size(); // 读取获取到的主Activity数量
                 for (int a = 0; a < NA; a++) { //遍历所有的ResolveInfo，注意一个主Activity对应一个ResolveInfo
                     ResolveInfo r = mainApps.get(a); //先去除其中一个ResoloveInfo对象
@@ -1199,9 +1201,10 @@ public class Monkey {
         boolean systemCrashed = false; //记录系统是否发生崩溃的标志位，比如AMS服务可能会停止工作，那么Monkey进程也会停止了……有道理……
 
         try {
-            // 1、系统本身未出现崩溃
-            // 2、Monkey的执行次数未到
-            // 两个条件同时满足时，monkey程序会一直运行（monkey主线程进入循环中）
+            // 1、系统本身未崩溃
+            // 2、Monkey执行次数未到达
+            // 两个条件同时满足，monkey就会程序会一直运行（monkey主线程进入循环中）
+            // 注意：如果没有设置忽略anr、忽略crash、忽略native crash，当出现一次后，monkey程序会结束
             while (!systemCrashed && cycleCounter < mCount) {
                 //每次获取事件前做的事情真多呀
                 synchronized (this) { //Monkey的主线程需要获取Monkey对象锁，可继续运行此代码块（Monkey对象自身的锁)，后面你知道为何使用这个对象锁，主要是为了线程间同步

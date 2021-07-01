@@ -44,17 +44,18 @@ import java.util.Random;
  * ...
  * </pre>
  * MonkeySourceScript is a MonkeyEventSource
+ * 从脚本事件源中获取事件，写的很好
  */
 public class MonkeySourceScript implements MonkeyEventSource {
-    private int mEventCountInScript = 0; // total number of events in the file
+    private int mEventCountInScript = 0; // total number of events in the file //表示脚本数量
 
-    private int mVerbose = 0;
+    private int mVerbose = 0; //用于调试打印信息的选项
 
-    private double mSpeed = 1.0;
+    private double mSpeed = 1.0; //速度？
 
-    private String mScriptFileName;
+    private String mScriptFileName; //脚本文件的名称
 
-    private MonkeyEventQueue mQ;
+    private MonkeyEventQueue mQ; //双向队列
 
     private static final String HEADER_COUNT = "count=";
 
