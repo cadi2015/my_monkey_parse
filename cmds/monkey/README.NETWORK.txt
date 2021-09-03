@@ -1,4 +1,5 @@
 SIMPLE PROTOCOL FOR AUTOMATED NETWORK CONTROL
+简易的协议用于网络控制
 
 The Simple Protocol for Automated Network Control was designed to be a
 low-level way to programmability inject KeyEvents and MotionEvents

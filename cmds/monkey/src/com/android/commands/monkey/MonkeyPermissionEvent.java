@@ -26,9 +26,12 @@ import android.os.ServiceManager;
 import android.permission.IPermissionManager;
 import android.view.IWindowManager;
 
+/**
+ * 权限事件
+ */
 public class MonkeyPermissionEvent extends MonkeyEvent {
-    private String mPkg;
-    private PermissionInfo mPermissionInfo;
+    private String mPkg; //持有的包名
+    private PermissionInfo mPermissionInfo; //持有的权限信息，一个PermissionInfo对象
 
     public MonkeyPermissionEvent(String pkg, PermissionInfo permissionInfo) {
         super(EVENT_TYPE_PERMISSION);
@@ -36,26 +39,33 @@ public class MonkeyPermissionEvent extends MonkeyEvent {
         mPermissionInfo = permissionInfo;
     }
 
+    /**
+     *
+     * @param iwm wires to current window manager WMS系统服务
+     * @param iam wires to current activity manager AMS系统服务
+     * @param verbose a log switch log开关
+     * @return
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        final IPermissionManager permissionManager = AppGlobals.getPermissionManager();
-        final int currentUser = ActivityManager.getCurrentUser();
+        final IPermissionManager permissionManager = AppGlobals.getPermissionManager(); //获取权限管理器系统服务
+        final int currentUser = ActivityManager.getCurrentUser(); //获取当前用户？
         try {
             // determine if we should grant or revoke permission
-            int perm = permissionManager.checkPermission(mPermissionInfo.name, mPkg, currentUser);
-            boolean grant = perm == PackageManager.PERMISSION_DENIED;
+            int perm = permissionManager.checkPermission(mPermissionInfo.name, mPkg, currentUser); //检查当前用户、当前包，还有权限名，对应的权限获取情况
+            boolean grant = perm == PackageManager.PERMISSION_DENIED; //判断是否获得了权限
             // log before calling pm in case we hit an error
             Logger.out.println(String.format(":Permission %s %s to package %s",
-                    grant ? "grant" : "revoke", mPermissionInfo.name, mPkg));
-            if (grant) {
-                permissionManager.grantRuntimePermission(mPkg, mPermissionInfo.name, currentUser);
+                    grant ? "grant" : "revoke", mPermissionInfo.name, mPkg)); //向标准输出流打印获取的权限情况
+            if (grant) { //如果对应的权限被拒了
+                permissionManager.grantRuntimePermission(mPkg, mPermissionInfo.name, currentUser); //直接使用permissionManager获取运行时权限
             } else {
                 permissionManager.revokeRuntimePermission(mPkg, mPermissionInfo.name, currentUser,
-                        null);
+                        null); //这里竟然是取消运行时权限
             }
-            return MonkeyEvent.INJECT_SUCCESS;
+            return MonkeyEvent.INJECT_SUCCESS; //返回注入结果为成功
         } catch (RemoteException re) {
-            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION;
+            return MonkeyEvent.INJECT_ERROR_REMOTE_EXCEPTION; //系统服务出错，返回远程异常
         }
     }
 }

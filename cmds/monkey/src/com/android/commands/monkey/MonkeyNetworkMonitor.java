@@ -34,23 +34,23 @@ import android.os.UserHandle;
 public class MonkeyNetworkMonitor extends IIntentReceiver.Stub {
     private static final boolean LDEBUG = false; //用于调试日志
     private final IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION); //MonkeyNetworkMonitor对象持有的IntentFilter对象
-    private long mCollectionStartTime; // time we started collecting data
-    private long mEventTime; // time of last event (connect, disconnect, etc.)
+    private long mCollectionStartTime; // time we started collecting data 用于记录收藏的时间
+    private long mEventTime; // time of last event (connect, disconnect, etc.) 用于记录事件时间
     private int mLastNetworkType = -1; // unknown //用于记录最后一个的网络类型
-    private long mWifiElapsedTime = 0;  // accumulated time spent on wifi since start()
-    private long mMobileElapsedTime = 0; // accumulated time spent on mobile since start()
-    private long mElapsedTime = 0; // amount of time spent between start() and stop()
+    private long mWifiElapsedTime = 0;  // accumulated time spent on wifi since start() 用于记录wifi花费的时间 MonkeyNetworkMonitor对象持有
+    private long mMobileElapsedTime = 0; // accumulated time spent on mobile since start() 用于记录移动网络花费的时间  MonkeyNetworkMonitor对象持有
+    private long mElapsedTime = 0; // amount of time spent between start() and stop() 用于记录从开始到结束的总的时间
 
     /**
-     * AMS远程调用的方法，执行在当前Binder线程池中
-     * @param intent
+     * AMS远程调用的方法，执行在当前进程中的Binder线程池中的某个线程中
+     * @param intent Intent支持序列化
      * @param resultCode
      * @param data
      * @param extras
      * @param ordered
      * @param sticky
      * @param sendingUser
-     * @throws RemoteException
+     * @throws RemoteException 当系统服务出错，此方法可能抛出异常，建议调用者需要处理
      */
     public void performReceive(Intent intent, int resultCode, String data, Bundle extras,
             boolean ordered, boolean sticky, int sendingUser) throws RemoteException {

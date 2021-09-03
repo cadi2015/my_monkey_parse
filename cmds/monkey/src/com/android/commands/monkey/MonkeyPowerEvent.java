@@ -28,13 +28,14 @@ import android.os.Build;
 
 /**
  * Special events for power measurement.
+ * 一个Power事件
  */
 public class MonkeyPowerEvent extends MonkeyEvent {
 
     //Parameter for the power test runner
-    private static final String TAG = "PowerTester";
-    private static final String LOG_FILE = "/sdcard/autotester.log";
-    private static ArrayList<ContentValues> mLogEvents = new ArrayList<ContentValues>();
+    private static final String TAG = "PowerTester"; //调试用的TAG
+    private static final String LOG_FILE = "/sdcard/autotester.log"; //文件名
+    private static ArrayList<ContentValues> mLogEvents = new ArrayList<ContentValues>(); //创建一个List对象
     private static final String TEST_SEQ_BEGIN = "AUTOTEST_SEQUENCE_BEGIN";
     private static final String TEST_STARTED = "AUTOTEST_TEST_BEGIN";
     private static final String TEST_DELAY_STARTED = "AUTOTEST_TEST_BEGIN_DELAY";
@@ -48,6 +49,11 @@ public class MonkeyPowerEvent extends MonkeyEvent {
     //10 secs for the screen to trun off after the usb notification
     private static final long USB_DELAY_TIME = 10000;
 
+    /**
+     *
+     * @param powerLogTag
+     * @param powerTestResult
+     */
     public MonkeyPowerEvent(String powerLogTag, String powerTestResult) {
         super(EVENT_TYPE_ACTIVITY);
         mPowerLogTag = powerLogTag;

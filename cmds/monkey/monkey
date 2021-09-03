@@ -1,11 +1,12 @@
 # Script to start "monkey" on the device, which has a very rudimentary
-# shell.
+# shell. 用于启动monkey程序的shell脚本
 #
-base=/system
-export CLASSPATH=$base/framework/monkey.jar
-trap "" HUP
-for a in "$@"; do
-    echo "  bash arg:" $a
-done
-exec app_process $base/bin com.android.commands.monkey.Monkey "$@"
+base=/system #全局变量，记录着一个路径
+export CLASSPATH=$base/framework/monkey.jar #导出环境变量CLASSPATH的值为/system/framework/monkey.jar
+trap "" HUP  #捕获信号HUP，然后什么也不做
+for a in "$@"; do #循环遍历所有的命令行参数
+    echo "  bash arg:" $a #向控制台输出每个参数
+done #for循环结束
+exec app_process $base/bin com.android.commands.monkey.Monkey "$@" #替换程序，使用二进制可执行程序（二进制可执行文件app_process）并向其传入3个参数
+#第一个参数是$bash/bin 第二个参数是com.android.commands.monkey.Monkey 第三个参数是"所有命令行参数"
 

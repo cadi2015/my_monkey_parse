@@ -36,6 +36,7 @@ import java.util.TreeMap;
 public class MonkeySourceNetworkVars {
     /**
      * Interface to get the value of a var.
+     * 静态内部接口
      */
     private static interface VarGetter {
         /**
@@ -45,8 +46,11 @@ public class MonkeySourceNetworkVars {
         public String get();
     }
 
+    /**
+     *
+     */
     private static class StaticVarGetter implements VarGetter {
-        private final String value;
+        private final String value; //持有一个String
 
         public StaticVarGetter(String value) {
             this.value = value;
@@ -58,10 +62,10 @@ public class MonkeySourceNetworkVars {
     }
 
     // Use a TreeMap to keep the keys sorted so they get displayed nicely in listvar
-    private static final Map<String, VarGetter> VAR_MAP = new TreeMap<String, VarGetter>();
+    private static final Map<String, VarGetter> VAR_MAP = new TreeMap<String, VarGetter>(); //MonkeySourceNetworkVars类持有的一个TreeMap对象，看来是要排序元素了
 
     static {
-        VAR_MAP.put("build.board", new StaticVarGetter(Build.BOARD));
+        VAR_MAP.put("build.board", new StaticVarGetter(Build.BOARD)); //向TreeMap中添加一个元素，key为build.board，value为StaticVarGetter对象，因为Build.BOARD是个整型
         VAR_MAP.put("build.brand", new StaticVarGetter(Build.BRAND));
         VAR_MAP.put("build.device", new StaticVarGetter(Build.DEVICE));
         VAR_MAP.put("build.display", new StaticVarGetter(Build.DISPLAY));
@@ -82,13 +86,13 @@ public class MonkeySourceNetworkVars {
         VAR_MAP.put("build.version.codename", new StaticVarGetter(Build.VERSION.CODENAME));
 
         // Display
-        Display display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY);
-        VAR_MAP.put("display.width", new StaticVarGetter(Integer.toString(display.getWidth())));
-        VAR_MAP.put("display.height", new StaticVarGetter(Integer.toString(display.getHeight())));
+        Display display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY); //获取表示屏幕的Display对象
+        VAR_MAP.put("display.width", new StaticVarGetter(Integer.toString(display.getWidth()))); //存储屏幕宽度
+        VAR_MAP.put("display.height", new StaticVarGetter(Integer.toString(display.getHeight()))); //存储屏幕高度
 
-        DisplayMetrics dm = new DisplayMetrics();
-        display.getMetrics(dm);
-        VAR_MAP.put("display.density", new StaticVarGetter(Float.toString(dm.density)));
+        DisplayMetrics dm = new DisplayMetrics(); //创建显示矩阵对象
+        display.getMetrics(dm); //向Display对象中传入DisplayMetrics对象
+        VAR_MAP.put("display.density", new StaticVarGetter(Float.toString(dm.density))); //存储屏幕的密度
 
         // am.  note that the current activity information isn't valid
         // until the first activity gets launched after the monkey has
@@ -96,14 +100,14 @@ public class MonkeySourceNetworkVars {
         VAR_MAP.put("am.current.package", new VarGetter() {
                 public String get() {
                     return Monkey.currentPackage;
-                }
+                } //存储当前的包名
             });
         VAR_MAP.put("am.current.action", new VarGetter() {
                 public String get() {
                     if (Monkey.currentIntent == null) {
                         return null;
                     }
-                    return Monkey.currentIntent.getAction();
+                    return Monkey.currentIntent.getAction(); //存储当前执行的Intent
                 }
             });
         VAR_MAP.put("am.current.comp.class", new VarGetter() {
@@ -111,7 +115,7 @@ public class MonkeySourceNetworkVars {
                     if (Monkey.currentIntent == null) {
                         return null;
                     }
-                    return Monkey.currentIntent.getComponent().getClassName();
+                    return Monkey.currentIntent.getComponent().getClassName(); //存储Intent中对应的Component中的类名
                 }
             });
         VAR_MAP.put("am.current.comp.package", new VarGetter() {
@@ -119,7 +123,7 @@ public class MonkeySourceNetworkVars {
                     if (Monkey.currentIntent == null) {
                         return null;
                     }
-                    return Monkey.currentIntent.getComponent().getPackageName();
+                    return Monkey.currentIntent.getComponent().getPackageName(); //存储Intent中对应的Component中的包名
                 }
             });
         VAR_MAP.put("am.current.data", new VarGetter() {
@@ -127,7 +131,7 @@ public class MonkeySourceNetworkVars {
                     if (Monkey.currentIntent == null) {
                         return null;
                     }
-                    return Monkey.currentIntent.getDataString();
+                    return Monkey.currentIntent.getDataString(); //获取Intent对象中存储的String
                 }
             });
         VAR_MAP.put("am.current.categories", new VarGetter() {
@@ -137,7 +141,7 @@ public class MonkeySourceNetworkVars {
                     }
                     StringBuffer sb = new StringBuffer();
                     for (String cat : Monkey.currentIntent.getCategories()) {
-                        sb.append(cat).append(" ");
+                        sb.append(cat).append(" "); //获取Intent对象持有的所有Category
                     }
                     return sb.toString();
                 }
@@ -147,21 +151,21 @@ public class MonkeySourceNetworkVars {
         VAR_MAP.put("clock.realtime", new VarGetter() {
                 public String get() {
                     return Long.toString(SystemClock.elapsedRealtime());
-                }
+                } //再存储一个时间
             });
         VAR_MAP.put("clock.uptime", new VarGetter() {
                 public String get() {
                     return Long.toString(SystemClock.uptimeMillis());
-                }
+                } //再存储一个系统开机至今的更新时间
             });
         VAR_MAP.put("clock.millis", new VarGetter() {
                 public String get() {
                     return Long.toString(System.currentTimeMillis());
-                }
+                } //再存储一个当前时间戳
             });
         VAR_MAP.put("monkey.version", new VarGetter() {
                 public String get() {
-                    return Integer.toString(MonkeySourceNetwork.MONKEY_NETWORK_VERSION);
+                    return Integer.toString(MonkeySourceNetwork.MONKEY_NETWORK_VERSION); //还存储着当前MonkeySourceNetwork的版本
                 }
             });
     }

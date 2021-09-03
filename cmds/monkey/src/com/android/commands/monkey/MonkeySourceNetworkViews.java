@@ -67,12 +67,13 @@ public class MonkeySourceNetworkViews {
                                                 + "try restarting Monkey"; //不能连接AccessibilityService的提示（应该是AccessibilityManagerService）
 
     private static final Map<String, ViewIntrospectionCommand> COMMAND_MAP =
-            new HashMap<String, ViewIntrospectionCommand>(); //MonkeySourceNetworkViews类持有的HashMap对象，Key为String，Value为ViewIntrospectionCommand
+            new HashMap<String, ViewIntrospectionCommand>(); //MonkeySourceNetworkViews类持有的HashMap对象，Key为String，Value为ViewIntrospectionCommand对象
 
     /* Interface for view queries */
 
     /**
-     * 表示具备什么样的能力？查询能力
+     * 表示具备什么样的能力的接口？查询能力
+     * 实现此接口的类，都具备查询能力
      */
     private static interface ViewIntrospectionCommand {
         /**
@@ -115,7 +116,7 @@ public class MonkeySourceNetworkViews {
         sHandlerThread.start(); //启动线程
         sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(), //将线程中创建的Looper传进去
                 new UiAutomationConnection()); //原来自己创建一个UiAutomationConnection对象即可
-        sUiTestAutomationBridge.connect(); //与AssiblityManagerService建立连接
+        sUiTestAutomationBridge.connect(); //与AcessiblityManagerService建立连接
     }
 
     public static void teardown() {

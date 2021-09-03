@@ -1,4 +1,4 @@
-# Touch the android
+# Touch the android 触摸事件
 touch down 160 200
 touch up 160 200
 sleep 1000

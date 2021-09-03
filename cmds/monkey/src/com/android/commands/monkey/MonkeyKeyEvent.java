@@ -112,6 +112,10 @@ public class MonkeyKeyEvent extends MonkeyEvent {
         mEventTime = eventTime;
     }
 
+    /**
+     * 判断是否支持间隔，判断动作，如果是ACTION_UP，就支持间隔
+     * @return
+     */
     @Override
     public boolean isThrottlable() {
         return (getAction() == KeyEvent.ACTION_UP);
@@ -140,28 +144,28 @@ public class MonkeyKeyEvent extends MonkeyEvent {
                         + MonkeySourceRandom.getKeyName(mKeyCode)); //向标准错误流输出日志，keycode
             } catch (ArrayIndexOutOfBoundsException e) {
                 Logger.out.println(":Sending Key (" + note + "): "
-                        + mKeyCode + "    // Unknown key event");
+                        + mKeyCode + "    // Unknown key event"); //大佬竟然也这么搞？超出数组下标的情况，直接捕获，然后不处理……
             }
         }
 
-        KeyEvent keyEvent = mKeyEvent;
-        if (keyEvent == null) {
-            long eventTime = mEventTime;
-            if (eventTime <= 0) {
-                eventTime = SystemClock.uptimeMillis();
+        KeyEvent keyEvent = mKeyEvent; //将需要执行的KeyEvent
+        if (keyEvent == null) { //如果，创建MonkeyKeyEvent对象时，没有传入mKeyEvent，或者传入的就时一个空的
+            long eventTime = mEventTime; //先获取事件发生时间
+            if (eventTime <= 0) { //如果时间小于等于0……
+                eventTime = SystemClock.uptimeMillis(); //获取当前开机距离到现在的时间（毫秒）
             }
-            long downTime = mDownTime;
-            if (downTime <= 0) {
-                downTime = eventTime;
+            long downTime = mDownTime; //记录按下时间
+            if (downTime <= 0) { //如果按下时间小于事件的发生时间
+                downTime = eventTime; //那么按下时间就用最近的发生时间
             }
             keyEvent = new KeyEvent(downTime, eventTime, mAction, mKeyCode,
                     mRepeatCount, mMetaState, mDeviceId, mScanCode,
                     KeyEvent.FLAG_FROM_SYSTEM, InputDevice.SOURCE_KEYBOARD);
         }
         if (!InputManager.getInstance().injectInputEvent(keyEvent,
-                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) {
+                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) { //如果IMS注入事件失败，则返回INJECT_FAIL，表示注入事件失败
             return MonkeyEvent.INJECT_FAIL;
         }
-        return MonkeyEvent.INJECT_SUCCESS;
+        return MonkeyEvent.INJECT_SUCCESS; //其他情况下返回注入事件成功
     }
 }

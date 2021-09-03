@@ -29,8 +29,8 @@ import android.view.IWindowManager;
 
 /**
  * monkey activity event
- * 表示操作Activity的事件，依赖于AMS启动Activity
- * 两种创建对象的方式，根据需求，创建不同初始化的对象
+ * 表示操作Activity的事件，每个对象都可启动根Activity，依赖于AMS系统服务启动Activity
+ * 两种创建对象的方式，根据需求，可以创建不同的对象
  */
 public class MonkeyActivityEvent extends MonkeyEvent {
     private ComponentName mApp; //持有的ComponentName对象（目前是用来启动每个App的Launcher Activity）
@@ -38,7 +38,7 @@ public class MonkeyActivityEvent extends MonkeyEvent {
 
     /**
      *
-     * @param app 传入组件名对象
+     * @param app 传入组件名对象:ComponentName对象
      */
     public MonkeyActivityEvent(ComponentName app) {
         super(EVENT_TYPE_ACTIVITY);

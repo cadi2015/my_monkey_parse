@@ -127,7 +127,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
     private Random mRandom; //MonkeySourceRandom对象持有的Random对象
     private int mVerbose = 0; //MonkeySourceRandom对象持有的日志等级
     private long mThrottle = 0; //MonkeySourceRandom对象持有的事件延迟时间，但是没有使用……大牛也会犯错……
-    private MonkeyPermissionUtil mPermissionUtil; //MonkeySourceRandom对象持有的权限工具对象
+    private MonkeyPermissionUtil mPermissionUtil; //MonkeySourceRandom对象持有的MonkeyPermissionUtil对象
 
     private boolean mKeyboardOpen = false; //持有的键盘是否打开的标志位
 
@@ -541,7 +541,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         if (mFactors[FACTOR_PERMISSION] != 0.0f) { //如果设置了PERMISSION事件才会走这里，注意这个FACTOR_PERMISSION，在MonkeySourceRandom中默认值为0
             ret &= mPermissionUtil.populatePermissionsMapping();
             if (ret && mVerbose >= 2) { //只有获取到权限与日志等级最高时
-                mPermissionUtil.dump(); //做输出更多日志
+                mPermissionUtil.dump(); //输出更多日志
             }
         }
         return ret & adjustEventFactors(); //开始调整事件比例，返回检查结果，通过ret与，两个boolean值必须都计算，且都为true

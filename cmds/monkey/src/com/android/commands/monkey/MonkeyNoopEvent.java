@@ -24,8 +24,8 @@ import android.view.IWindowManager;
 
 /**
  * monkey noop event (don't do anything).
- * 什么也不需要干的事件，类似于一个哨兵事件
- * 只在Socket事件来源中使用该事件
+ * 什么也不干的事件，类似于一个哨兵事件
+ * 只在Socket事件来源中使用该事件（当然我也可以使用）
  */
 public class MonkeyNoopEvent extends MonkeyEvent {
 

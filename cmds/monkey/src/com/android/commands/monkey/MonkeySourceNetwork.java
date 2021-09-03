@@ -52,7 +52,7 @@ import java.util.StringTokenizer;
 public class MonkeySourceNetwork implements MonkeyEventSource {
     private static final String TAG = "MonkeyStub";
     /* The version of the monkey network protocol */
-    public static final int MONKEY_NETWORK_VERSION = 2;
+    public static final int MONKEY_NETWORK_VERSION = 2; //标记着网络版本
     private static DeferredReturn deferredReturn; //MonkeySourceNetwork类持有的DeferredReturn对象
 
     /**

@@ -22,23 +22,23 @@ import android.util.Log;
  * 有开关，默认均为true
  * 用于向标准输出流打印文本，同时使用logcat支持的Log.i输出日志
  * 用于向标准错误流打印文本，同时使用logcat支持的Log.w输出日志
- *
+ * 定义了作为日志的功能，println（）功能
  */
 public abstract class Logger {
     private static final String TAG = "Monkey";
 
-    public static Logger out = new Logger() {
+    public static Logger out = new Logger() { //Logger类持有的Logger对象
         public void println(String s) {
-            if (stdout) {
+            if (stdout) { // 说明可在控制台调试（标准输出流）
                 System.out.println(s);
             }
-            if (logcat) {
+            if (logcat) { // 说明可用logcat调试
                 Log.i(TAG, s);
             }
         }
     };
     public static Logger err = new Logger() {
-        public void println(String s) {
+        public void println(String s) { //Logger类持有的另一个Logger对象
             if (stdout) {
                 System.err.println(s);
             }
@@ -60,7 +60,7 @@ public abstract class Logger {
      * @param t The exception (throwable) to log. 需要输出哪个异常对象的堆栈信息
      */
     public static void error(String msg, Throwable t) {
-        err.println(msg);
-        err.println(Log.getStackTraceString(t));
+        err.println(msg); //输出文本信息
+        err.println(Log.getStackTraceString(t)); //输出线程堆栈
     }
 }

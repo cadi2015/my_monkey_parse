@@ -34,38 +34,55 @@ import java.util.regex.Matcher;
  * Events for running a special shell command to capture the frame rate for a given app. To run
  * this test, the system property viewancestor.profile_rendering must be set to
  * true to force the currently focused window to render at 60 Hz.
+ * 用于获取App帧率的事件，提供3个创建对象的方式
  */
 public class MonkeyGetAppFrameRateEvent extends MonkeyEvent {
 
-    private String GET_APP_FRAMERATE_TMPL = "dumpsys gfxinfo %s";
-    private String mStatus;
-    private static long sStartTime; // in millisecond
-    private static long sEndTime; // in millisecond
-    private static float sDuration; // in seconds
-    private static String sActivityName = null;
-    private static String sTestCaseName = null;
-    private static int sStartFrameNo;
-    private static int sEndFrameNo;
+    private String GET_APP_FRAMERATE_TMPL = "dumpsys gfxinfo %s"; //使用的命令
+    private String mStatus; //表示状态
+    private static long sStartTime; // in millisecond ，开始时间
+    private static long sEndTime; // in millisecond ， 结束时间
+    private static float sDuration; // in seconds 发生的时长
+    private static String sActivityName = null; //MonkeyGetAppFrameRateEvent类持有的Activity名称
+    private static String sTestCaseName = null; //MonkeyGetAppFrameRateEvent类持有的测试用例名称
+    private static int sStartFrameNo; //表示开始的帧编号
+    private static int sEndFrameNo; //表示结束的帧编号
 
-    private static final String TAG = "MonkeyGetAppFrameRateEvent";
+    private static final String TAG = "MonkeyGetAppFrameRateEvent"; //用于打印日志的TAG
     private static final String LOG_FILE = new File(Environment.getExternalStorageDirectory(),
-            "avgAppFrameRateOut.txt").getAbsolutePath();
+            "avgAppFrameRateOut.txt").getAbsolutePath(); //表示存储日志的文件路径
     private static final Pattern NO_OF_FRAMES_PATTERN =
-            Pattern.compile(".* ([0-9]*) frames rendered");
+            Pattern.compile(".* ([0-9]*) frames rendered"); //正则表达式模式
 
+    /**
+     *
+     * @param status 状态
+     * @param activityName activity名字
+     * @param testCaseName 测试用例名字
+     */
     public MonkeyGetAppFrameRateEvent(String status, String activityName, String testCaseName) {
-        super(EVENT_TYPE_ACTIVITY);
+        super(EVENT_TYPE_ACTIVITY); //注意该事件的类型也是EVENT_TYPE_ACTIVITY
         mStatus = status;
         sActivityName = activityName;
         sTestCaseName = testCaseName;
     }
 
+    /**
+     * 不用指定测试用例名字，创建对象
+     * @param status 状态
+     * @param activityName activity名字
+     */
     public MonkeyGetAppFrameRateEvent(String status, String activityName) {
         super(EVENT_TYPE_ACTIVITY);
         mStatus = status;
         sActivityName = activityName;
     }
 
+    /**
+     * 不用指定 activity名字
+     * 不用指定 测试用例名字
+     * @param status 只需指定状态
+     */
     public MonkeyGetAppFrameRateEvent(String status) {
         super(EVENT_TYPE_ACTIVITY);
         mStatus = status;
@@ -119,19 +136,26 @@ public class MonkeyGetAppFrameRateEvent extends MonkeyEvent {
         return noOfFrames;
     }
 
+    /**
+     * 注入事件(执行事件）
+     * @param iwm wires to current window manager WMS系统服务
+     * @param iam wires to current activity manager AMS系统服务
+     * @param verbose a log switch log开关
+     * @return
+     */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
-        Process p = null;
-        BufferedReader result = null;
-        String cmd = String.format(GET_APP_FRAMERATE_TMPL, sActivityName);
+        Process p = null; //创建局部变量，Process，Process对象表示子进程
+        BufferedReader result = null; //创建局部变量，缓冲字符对象
+        String cmd = String.format(GET_APP_FRAMERATE_TMPL, sActivityName); //格式化需要执行的命令，存放在局部变量cmd中
         try {
-            p = Runtime.getRuntime().exec(cmd);
-            int status = p.waitFor();
-            if (status != 0) {
+            p = Runtime.getRuntime().exec(cmd); //获取Runtime对象，执行它的exec（）方法，用于执行一个程序，返回一个Process对象，表示子进程
+            int status = p.waitFor(); //执行线程等待子进程执行完任务，这是waitFor（）的作用，拿到的status为程序的退出状态码
+            if (status != 0) { //退出状态码不为0，说明执行不成功
                 Logger.err.println(String.format("// Shell command %s status was %s",
-                        cmd, status));
+                        cmd, status)); //向标准错误流中打印，shell命令，以及退出状态码
             }
-            result = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            result = new BufferedReader(new InputStreamReader(p.getInputStream())); //创建BufferedReader对象，从子进程的输出中，获取执行文本
 
             String output = getNumberOfFrames(result);
 

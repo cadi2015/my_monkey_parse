@@ -43,6 +43,12 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
     //If true, this is an intermediate step (more verbose logging, only)
     private boolean mIntermediateNote; //标志位，用于标记是否为过渡事件
 
+    /**
+     * 用于子类调用的构造方法，创建对象，必备
+     * @param type 表示事件类型
+     * @param source 表示事件来源
+     * @param action
+     */
     protected MonkeyMotionEvent(int type, int source, int action) {
         super(type);
         mSource = source;
@@ -153,7 +159,7 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         MotionEvent ev = MotionEvent.obtain(mDownTime,
                 mEventTime < 0 ? SystemClock.uptimeMillis() : mEventTime,
                 mAction, pointerCount, pointerIds, pointerCoords,
-                mMetaState, mXPrecision, mYPrecision, mDeviceId, mEdgeFlags, mSource, mFlags); //通过MotionEvent的obtain方法，获取到在内存中缓存的一个MotionEvent对象，它不一定是一个点哦
+                mMetaState, mXPrecision, mYPrecision, mDeviceId, mEdgeFlags, mSource, mFlags); //通过MotionEvent的obtain()方法，获取到在内存中缓存的一个MotionEvent对象，它不一定是一个点哦
         //传入参数为按下的时间、点击的时间（做了保护，如果小于0，则直接使用当前系统开机至今的时间）、传入的动作
         return ev; //使用的是MotionEvent对象
     }
@@ -175,7 +181,7 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         MotionEvent me = getEvent(); //获取到封装好的MotionEvent对象（可能是一个点，也可能是多个点）
         if ((verbose > 0 && !mIntermediateNote) || verbose > 1) { //这个verbose这牛逼？原来这里只是为了向标准输出流输出日志
             StringBuilder msg = new StringBuilder(":Sending "); //用于保存日志的StringBuilder对象
-            msg.append(getTypeLabel()).append(" ("); //添加事件类型和一个（
+            msg.append(getTypeLabel()).append(" ("); //添加事件标签和一个（
             switch (me.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     msg.append("ACTION_DOWN");
@@ -219,5 +225,5 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         return MonkeyEvent.INJECT_SUCCESS; //走到这里说明注入事件成功，系统封装好了，靠你来执行了
     }
 
-    protected abstract String getTypeLabel();
+    protected abstract String getTypeLabel(); //定义了类型标签（模板方法设计模式），为子类准备的标签，为了区分更具体的事件
 }

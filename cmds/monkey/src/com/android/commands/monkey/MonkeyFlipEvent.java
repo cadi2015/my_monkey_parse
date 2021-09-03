@@ -30,6 +30,9 @@ public class MonkeyFlipEvent extends MonkeyEvent {
     // Raw keyboard flip event data
     // Works on emulator and dream
 
+    /**
+     * 字节数组，16个字节
+     */
     private static final byte[] FLIP_0 = {
         0x7f, 0x06,
         0x00, 0x00,
@@ -40,6 +43,9 @@ public class MonkeyFlipEvent extends MonkeyEvent {
         0x01, 0x00,
         0x00, 0x00 };
 
+    /**
+     * 字节数组，16个字节
+     */
     private static final byte[] FLIP_1 = {
         (byte) 0x85, 0x06,
         0x00, 0x00,
@@ -50,7 +56,7 @@ public class MonkeyFlipEvent extends MonkeyEvent {
         0x00, 0x00,
         0x00, 0x00 };
 
-    private final boolean mKeyboardOpen;
+    private final boolean mKeyboardOpen; //MonkeyFlipEvent对象持有的标志位，表示键盘是否开启
 
     public MonkeyFlipEvent(boolean keyboardOpen) {
         super(EVENT_TYPE_FLIP);
@@ -67,18 +73,18 @@ public class MonkeyFlipEvent extends MonkeyEvent {
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {
         if (verbose > 0) {
-            Logger.out.println(":Sending Flip keyboardOpen=" + mKeyboardOpen);
+            Logger.out.println(":Sending Flip keyboardOpen=" + mKeyboardOpen); //只有日志等级大于0时，才会打印这个日志，打印打开键盘的状态
         }
 
         // inject flip event
         try {
             FileOutputStream f = new FileOutputStream("/dev/input/event0");
-            f.write(mKeyboardOpen ? FLIP_0 : FLIP_1); //操作文件等同于操作硬件……
-            f.close();
-            return MonkeyEvent.INJECT_SUCCESS;
+            f.write(mKeyboardOpen ? FLIP_0 : FLIP_1); //操作文件等同于操作硬件……，向文件中写入二进制字节流
+            f.close(); //关闭文件输出流
+            return MonkeyEvent.INJECT_SUCCESS; //表示注入事件成功
         } catch (IOException e) {
-            Logger.out.println("Got IOException performing flip" + e);
-            return MonkeyEvent.INJECT_FAIL;
+            Logger.out.println("Got IOException performing flip" + e); //操作文件，如果出现IOException
+            return MonkeyEvent.INJECT_FAIL; //算作注入事件失败
         }
     }
 }

@@ -21,23 +21,20 @@ import java.util.Random;
 
 /**
  * class for keeping a monkey event queue
- * 双向链表，存储的元素是MonkeyEvent
- * 该双向链表的对象，只在两个对象中使用
- * 1、MonkeySourceRandom
- * 2、MonkeySourceScript
+ * 双向链表，存储的元素对象是MonkeyEvent
  */
 @SuppressWarnings("serial")
 public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {
 
-    private Random mRandom; //持有Random对象，用于生成随机间隔时间
-    private long mThrottle; //持有的事件停留间隔时间
-    private boolean mRandomizeThrottle; //持有的是否需要随机间隔
+    private Random mRandom; //MonkeyEventQueue对象持有的Random对象，用于生成随机间隔时间
+    private long mThrottle; //MonkeyEventQueue对象持有的事件停留间隔时间
+    private boolean mRandomizeThrottle; //MonkeyEventQueue对象持有的是否需要随机间隔
 
     /**
      * 创建双向链表对象的构造方法
-     * @param random 可以指定Random对象
-     * @param throttle 可以指定间隔时间
-     * @param randomizeThrottle 可以指定是否开启随机间隔
+     * @param random 指定Random对象
+     * @param throttle 指定间隔时间
+     * @param randomizeThrottle 指定是否开启随机间隔
      */
     public MonkeyEventQueue(Random random, long throttle, boolean randomizeThrottle) {
         super();

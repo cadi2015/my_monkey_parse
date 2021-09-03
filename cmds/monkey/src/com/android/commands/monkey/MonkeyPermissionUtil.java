@@ -101,21 +101,21 @@ public class MonkeyPermissionUtil {
     /**
      * Decide if a package should be targeted by permission monkey
      * @param info 包信息对象
-     * @return 是否为目标包
+     * @return 是否为目标包（可用的应用）
      */
     private boolean shouldTargetPackage(PackageInfo info) {
         // target if permitted by white listing / black listing rules
         if (MonkeyUtils.getPackageFilter().checkEnteringPackage(info.packageName)) {
             return true; //如果是允许进入的包，则直接返回true，不管别的事情
         }
-        if (mTargetSystemPackages //如果是系统应用、且不是无效包、应用的flags与FLAG_SYSTEM位与不等于0，直接返回true
+        if (mTargetSystemPackages //如果支持系统应用、且不是无效包、应用的flags与FLAG_SYSTEM位与不等于0，直接返回true
                 // not explicitly black listed
                 && !MonkeyUtils.getPackageFilter().isPackageInvalid(info.packageName)
                 // is a system app
                 && (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
             return true;
         }
-        return false; //
+        return false; //说不是支持的应用
     }
 
     private boolean shouldTargetPermission(String pkg, PermissionInfo pi) throws RemoteException {
@@ -137,12 +137,12 @@ public class MonkeyPermissionUtil {
             List<?> pkgInfos = mPm.getInstalledPackages(
                     PackageManager.GET_PERMISSIONS, UserHandle.myUserId()).getList(); //通过PMS获取所有已安装包的信息
             for (Object o : pkgInfos) { //遍历所有安装包信息
-                PackageInfo info = (PackageInfo)o; //向下转型为PackageInfo对象
-                if (!shouldTargetPackage(info)) {
+                PackageInfo info = (PackageInfo)o; //元素向下转型为PackageInfo对象
+                if (!shouldTargetPackage(info)) { //检查是不是可以使用的应用
                     continue; //如果不是目标包，直接中断一次循环
                 }
-                List<PermissionInfo> permissions = new ArrayList<>();
-                if (info.applicationInfo.targetSdkVersion <= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                List<PermissionInfo> permissions = new ArrayList<>(); //创建一个List对象，每个元素为PermissionInfo对象
+                if (info.applicationInfo.targetSdkVersion <= Build.VERSION_CODES.LOLLIPOP_MR1) { //判断API版本
                     // skip apps targetting lower API level
                     continue;
                 }
@@ -156,7 +156,7 @@ public class MonkeyPermissionUtil {
                     }
                 }
                 if (!permissions.isEmpty()) {
-                    mPermissionMap.put(info.packageName, permissions);
+                    mPermissionMap.put(info.packageName, permissions); //包名作为Key，List对象为Value，这个Map保存着每个应用的拥有权限情况，因为一个应用，会有多个权限，所以Key为包名，Value为一个List
                 }
             }
         } catch (RemoteException re) {
@@ -173,30 +173,35 @@ public class MonkeyPermissionUtil {
      * 向标准错误流输出权限信息
      */
     public void dump() {
-        Logger.out.println("// Targeted packages and permissions:");
-        for (Map.Entry<String, List<PermissionInfo>> e : mPermissionMap.entrySet()) {
-            Logger.out.println(String.format("//  + Using %s", e.getKey()));
-            for (PermissionInfo pi : e.getValue()) {
-                String name = pi.name;
-                if (name != null) {
-                    if (name.startsWith(PERMISSION_PREFIX)) {
-                        name = name.substring(PERMISSION_PREFIX.length());
+        Logger.out.println("// Targeted packages and permissions:"); //向标准错误流输出一行日志
+        for (Map.Entry<String, List<PermissionInfo>> e : mPermissionMap.entrySet()) { //遍历Map，包名为key，权限列表为Value
+            Logger.out.println(String.format("//  + Using %s", e.getKey())); //打印包名
+            for (PermissionInfo pi : e.getValue()) { //遍历一个包，获取到的所有权限
+                String name = pi.name; //权限名称
+                if (name != null) { //如果有权限名称
+                    if (name.startsWith(PERMISSION_PREFIX)) { //如果权限名称是以android.permission.开头的
+                        name = name.substring(PERMISSION_PREFIX.length()); //提取android.permission.后面的字符串
                     }
                 }
-                String group = pi.group;
-                if (group != null) {
-                    if (group.startsWith(PERMISSION_GROUP_PREFIX)) {
-                        group = group.substring(PERMISSION_GROUP_PREFIX.length());
+                String group = pi.group; //获取所在的权限组
+                if (group != null) { //如果权限组不为空
+                    if (group.startsWith(PERMISSION_GROUP_PREFIX)) { //检查权限组是否以android.permission-group.
+                        group = group.substring(PERMISSION_GROUP_PREFIX.length()); //提取android.permission-group.后面的字符串
                     }
                 }
-                Logger.out.println(String.format("//    Permission: %s [%s]", name, group));
+                Logger.out.println(String.format("//    Permission: %s [%s]", name, group)); //输出权限名，还有所在的权限组
             }
         }
     }
 
+    /**
+     * 构建一个MonkeyPermissionEvent事件
+     * @param random Random对象
+     * @return 返回构建好的构建一个MonkeyPermissionEvent事件，该事件通过权限系统服务，可以开启或者关闭某个应用获取到的权限
+     */
     public MonkeyPermissionEvent generateRandomPermissionEvent(Random random) {
-        String pkg = mTargetedPackages.get(random.nextInt(mTargetedPackages.size()));
-        List<PermissionInfo> infos = mPermissionMap.get(pkg);
-        return new MonkeyPermissionEvent(pkg, infos.get(random.nextInt(infos.size())));
+        String pkg = mTargetedPackages.get(random.nextInt(mTargetedPackages.size())); //从指定的包名中，随机获取一个包名
+        List<PermissionInfo> infos = mPermissionMap.get(pkg); //获取该包名中所有对应的权限信息
+        return new MonkeyPermissionEvent(pkg, infos.get(random.nextInt(infos.size()))); //创建MonkeyPermissionEvent对象，并且把包名、还有该包名支持的一个权限传入进去（PermissionInfo对象）
     }
 }

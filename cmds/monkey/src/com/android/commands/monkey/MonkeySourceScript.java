@@ -171,7 +171,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
      * @param throttle The amount of time in ms to sleep between events.
      */
     public MonkeySourceScript(Random random, String filename, long throttle,
-            boolean randomizeThrottle, long profileWaitTime, long deviceSleepTime) {
+                              boolean randomizeThrottle, long profileWaitTime, long deviceSleepTime) {
         mScriptFileName = filename;
         mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle);
         mProfileWaitTime = profileWaitTime;
@@ -180,6 +180,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     /**
      * Resets the globals used to timeshift events.
+     * 这么用于存储的实例变量
      */
     private void resetValue() {
         mLastRecordedDownTimeKey = 0;
@@ -193,51 +194,52 @@ public class MonkeySourceScript implements MonkeyEventSource {
     /**
      * Reads the header of the script file.
      *
-     * @return True if the file header could be parsed, and false otherwise.
-     * @throws IOException If there was an error reading the file.
+     * @return True if the file header could be parsed, and false otherwise. 表示解析文件开头的结果，false表示解析失败
+     * @throws IOException If there was an error reading the file. 该方法出现IOException，不会自己处理，需要调用者来处理IOException
      */
     private boolean readHeader() throws IOException {
-        mFileOpened = true;
+        mFileOpened = true; //标记文件已经被打开
 
-        mFStream = new FileInputStream(mScriptFileName);
-        mInputStream = new DataInputStream(mFStream);
-        mBufferedReader = new BufferedReader(new InputStreamReader(mInputStream));
+        mFStream = new FileInputStream(mScriptFileName); //创建文件输入流对象（读入到内存中操作）
+        mInputStream = new DataInputStream(mFStream); //二进制输入字节流与文件输入流结合！
+        mBufferedReader = new BufferedReader(new InputStreamReader(mInputStream)); //内存缓冲区，需要传入一个二进制字节流转化为字符流（使用编码）
 
-        String line;
+        String line; //存储每一行的内容
 
-        while ((line = mBufferedReader.readLine()) != null) {
-            line = line.trim();
+        //这里是在每一行去查找需要的内容
+        while ((line = mBufferedReader.readLine()) != null) { //读取一行内容，如果有内容，就继续执行
+            line = line.trim(); //去除掉一行中的收尾的空白字符
 
-            if (line.indexOf(HEADER_COUNT) >= 0) {
+            if (line.indexOf(HEADER_COUNT) >= 0) { // 找到某行是否标记有count=，且将HEADER_COUNT在某行首次出现的位置与0进行比较
                 try {
                     String value = line.substring(HEADER_COUNT.length() + 1).trim();
-                    mEventCountInScript = Integer.parseInt(value);
-                } catch (NumberFormatException e) {
-                    Logger.err.println("" + e);
-                    return false;
+                    mEventCountInScript = Integer.parseInt(value); //提取在脚本文件中标记的事件数量，将字符串解析成整型
+                } catch (NumberFormatException e) { //如果提取的字符串无法转化成整型
+                    Logger.err.println("" + e); //在标准错误流中输出日志
+                    return false;  //返回解析header错误的结果
                 }
-            } else if (line.indexOf(HEADER_SPEED) >= 0) {
+            } else if (line.indexOf(HEADER_SPEED) >= 0) { //找到speed=首次出现在某行的位置，看来是一行写一个了……
                 try {
-                    String value = line.substring(HEADER_COUNT.length() + 1).trim();
-                    mSpeed = Double.parseDouble(value);
-                } catch (NumberFormatException e) {
-                    Logger.err.println("" + e);
-                    return false;
+                    String value = line.substring(HEADER_COUNT.length() + 1).trim(); //提取speed=后面的值
+                    mSpeed = Double.parseDouble(value); //将字符串转化为double
+                } catch (NumberFormatException e) { //如果字符串转换double出错
+                    Logger.err.println("" + e); //在标准错误流中提示，输出日志
+                    return false; //返回解析header错误的结果
                 }
-            } else if (line.indexOf(HEADER_LINE_BY_LINE) >= 0) {
-                mReadScriptLineByLine = true;
-            } else if (line.indexOf(STARTING_DATA_LINE) >= 0) {
-                return true;
+            } else if (line.indexOf(HEADER_LINE_BY_LINE) >= 0) { //找到某行中是否有linebyline，当然也拿到首次出现的位置
+                mReadScriptLineByLine = true; //表示脚本文件中存在linbebyline
+            } else if (line.indexOf(STARTING_DATA_LINE) >= 0) { //找到某行中是否有start data >>
+                return true; //找到了直接返回true，说明解析文件头部成功
             }
         }
 
-        return false;
+        return false; //找遍整个脚本文件，都没有匹配的内容，最后返回false，说明文件的头部几行不符合要求
     }
 
     /**
      * Reads a number of lines and passes the lines to be processed.
-     *
-     * @return The number of lines read.
+     * 一次性将所有行解析完毕，
+     * @return The number of lines read. 一共读取了多少行
      * @throws IOException If there was an error reading the file.
      */
     private int readLines() throws IOException {
@@ -253,57 +255,56 @@ public class MonkeySourceScript implements MonkeyEventSource {
         return MAX_ONE_TIME_READS;
     }
 
-     /**
-      * Reads one line and processes it.
-      *
-      * @return the number of lines read
-      * @throws IOException If there was an error reading the file.
-      */
+    /**
+     * Reads one line and processes it.
+     *
+     * @return the number of lines read
+     * @throws IOException If there was an error reading the file.
+     */
     private int readOneLine() throws IOException {
-        String line = mBufferedReader.readLine();
-        if (line == null) {
-            return 0;
+        String line = mBufferedReader.readLine(); //BufferReader对象的readLine（）
+        if (line == null) { //如果没有内容
+            return 0; //直接返回0
         }
-        line.trim();
-        processLine(line);
+        line.trim(); //去除空格
+        processLine(line); //解析行内容
         return 1;
     }
-
 
 
     /**
      * Creates an event and adds it to the event queue. If the parameters are
      * not understood, they are ignored and no events are added.
      *
-     * @param s The entire string from the script file.
-     * @param args An array of arguments extracted from the script file line.
+     * @param s    The entire string from the script file. 从脚本文件中读取的一整行字符串
+     * @param args An array of arguments extracted from the script file line. 从括号中提取的内容
      */
     private void handleEvent(String s, String[] args) {
         // Handle key event
-        if (s.indexOf(EVENT_KEYWORD_KEY) >= 0 && args.length == 8) {
+        if (s.indexOf(EVENT_KEYWORD_KEY) >= 0 && args.length == 8) { //如果在一整行中包括DispatchKey，且（）括号中正好是8个字符串
             try {
-                Logger.out.println(" old key\n");
-                long downTime = Long.parseLong(args[0]);
+                Logger.out.println(" old key\n");  //打印一行日志， old key
+                long downTime = Long.parseLong(args[0]);  //解析括号中的第一个字符串
                 long eventTime = Long.parseLong(args[1]);
                 int action = Integer.parseInt(args[2]);
                 int code = Integer.parseInt(args[3]);
                 int repeat = Integer.parseInt(args[4]);
                 int metaState = Integer.parseInt(args[5]);
                 int device = Integer.parseInt(args[6]);
-                int scancode = Integer.parseInt(args[7]);
+                int scancode = Integer.parseInt(args[7]); //解析括号中的最后一个字符串
 
                 MonkeyKeyEvent e = new MonkeyKeyEvent(downTime, eventTime, action, code, repeat,
-                        metaState, device, scancode);
-                Logger.out.println(" Key code " + code + "\n");
+                        metaState, device, scancode); //创建MonkeyKeyEvent对象，牛逼
+                Logger.out.println(" Key code " + code + "\n"); //输出Key code 值
 
-                mQ.addLast(e);
-                Logger.out.println("Added key up \n");
-            } catch (NumberFormatException e) {
+                mQ.addLast(e); //将事件对象，添加到双向队列的尾部
+                Logger.out.println("Added key up \n"); //打印一行日志，告知添加事件完毕
+            } catch (NumberFormatException e) { //如果捕获到解析数字失败，什么也不干……
             }
-            return;
+            return; //事件添加完毕，方法结束，真的是一行一个事件
         }
 
-        // Handle trackball or pointer events
+        // Handle trackball or pointer events 处理轨迹球事件，还有键盘事件，因为它俩需要的参数都是12个
         if ((s.indexOf(EVENT_KEYWORD_POINTER) >= 0 || s.indexOf(EVENT_KEYWORD_TRACKBALL) >= 0)
                 && args.length == 12) {
             try {
@@ -322,9 +323,9 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
                 MonkeyMotionEvent e;
                 if (s.indexOf("Pointer") > 0) {
-                    e = new MonkeyTouchEvent(action);
+                    e = new MonkeyTouchEvent(action); //创建MonkeyTouchEvent对象
                 } else {
-                    e = new MonkeyTrackballEvent(action);
+                    e = new MonkeyTrackballEvent(action); //创建MonkeyTrackballEvent对象
                 }
 
                 e.setDownTime(downTime)
@@ -334,7 +335,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
                         .setDeviceId(device)
                         .setEdgeFlags(edgeFlags)
                         .addPointer(0, x, y, pressure, size);
-                mQ.addLast(e);
+                mQ.addLast(e); //添加到双向链表中
             } catch (NumberFormatException e) {
             }
             return;
@@ -363,7 +364,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
                     if (action == MotionEvent.ACTION_POINTER_DOWN) {
                         e = new MonkeyTouchEvent(MotionEvent.ACTION_POINTER_DOWN
                                 | (pointerId << MotionEvent.ACTION_POINTER_INDEX_SHIFT))
-                                        .setIntermediateNote(true);
+                                .setIntermediateNote(true);
                     } else {
                         e = new MonkeyTouchEvent(action);
                     }
@@ -394,11 +395,11 @@ public class MonkeySourceScript implements MonkeyEventSource {
                             .setDeviceId(device)
                             .setEdgeFlags(edgeFlags)
                             .addPointer(0, x, y, pressure, size);
-                     if(action == MotionEvent.ACTION_POINTER_UP) {
-                         e.addPointer(1, mLastX[1], mLastY[1]);
-                     }
-                     mLastX[0] = x;
-                     mLastY[0] = y;
+                    if (action == MotionEvent.ACTION_POINTER_UP) {
+                        e.addPointer(1, mLastX[1], mLastY[1]);
+                    }
+                    mLastX[0] = x;
+                    mLastY[0] = y;
                 }
 
                 // Dynamically adjust waiting time to ensure that simulated evnets follow
@@ -424,11 +425,11 @@ public class MonkeySourceScript implements MonkeyEventSource {
                 int rotationDegree = Integer.parseInt(args[0]);
                 int persist = Integer.parseInt(args[1]);
                 if ((rotationDegree == Surface.ROTATION_0) ||
-                    (rotationDegree == Surface.ROTATION_90) ||
-                    (rotationDegree == Surface.ROTATION_180) ||
-                    (rotationDegree == Surface.ROTATION_270)) {
+                        (rotationDegree == Surface.ROTATION_90) ||
+                        (rotationDegree == Surface.ROTATION_180) ||
+                        (rotationDegree == Surface.ROTATION_270)) {
                     mQ.addLast(new MonkeyRotationEvent(rotationDegree,
-                                                       persist != 0));
+                            persist != 0));
                 }
             } catch (NumberFormatException e) {
             }
@@ -452,7 +453,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
                         .setEventTime(downTime)
                         .addPointer(0, x, y, 1, 5);
                 mQ.addLast(e1);
-                if (tapDuration > 0){
+                if (tapDuration > 0) {
                     mQ.addLast(new MonkeyWaitEvent(tapDuration));
                 }
                 MonkeyMotionEvent e2 = new MonkeyTouchEvent(MotionEvent.ACTION_UP)
@@ -522,13 +523,13 @@ public class MonkeySourceScript implements MonkeyEventSource {
                     y += yStep;
                     eventTime = SystemClock.uptimeMillis();
                     e = new MonkeyTouchEvent(MotionEvent.ACTION_MOVE).setDownTime(downTime)
-                        .setEventTime(eventTime).addPointer(0, x, y, 1, 5);
+                            .setEventTime(eventTime).addPointer(0, x, y, 1, 5);
                     mQ.addLast(e);
                 }
 
                 eventTime = SystemClock.uptimeMillis();
                 e = new MonkeyTouchEvent(MotionEvent.ACTION_UP).setDownTime(downTime)
-                    .setEventTime(eventTime).addPointer(0, x, y, 1, 5);
+                        .setEventTime(eventTime).addPointer(0, x, y, 1, 5);
                 mQ.addLast(e);
             }
         }
@@ -623,7 +624,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
         }
 
         //Handle the device wake up event
-        if (s.indexOf(EVENT_KEYWORD_DEVICE_WAKEUP) >= 0){
+        if (s.indexOf(EVENT_KEYWORD_DEVICE_WAKEUP) >= 0) {
             String pkg_name = "com.google.android.powerutil";
             String cl_name = "com.google.android.powerutil.WakeUpScreen";
             long deviceSleepTime = mDeviceSleepTime;
@@ -709,10 +710,10 @@ public class MonkeySourceScript implements MonkeyEventSource {
             String power_log_type = args[0];
             String test_case_status;
 
-            if (args.length == 1){
+            if (args.length == 1) {
                 MonkeyPowerEvent e = new MonkeyPowerEvent(power_log_type);
                 mQ.addLast(e);
-            } else if (args.length == 2){
+            } else if (args.length == 2) {
                 test_case_status = args[1];
                 MonkeyPowerEvent e = new MonkeyPowerEvent(power_log_type, test_case_status);
                 mQ.addLast(e);
@@ -775,24 +776,24 @@ public class MonkeySourceScript implements MonkeyEventSource {
     /**
      * Extracts an event and a list of arguments from a line. If the line does
      * not match the format required, it is ignored.
-     *
+     * 用于解析一行内容的方法
      * @param line A string in the form {@code cmd(arg1,arg2,arg3)}.
      */
     private void processLine(String line) {
-        int index1 = line.indexOf('(');
-        int index2 = line.indexOf(')');
+        int index1 = line.indexOf('('); //先找到第一个出现的（的位置
+        int index2 = line.indexOf(')'); //再找到第一个出现的）的位置
 
         if (index1 < 0 || index2 < 0) {
-            return;
+            return;  //容错，一行中没有（，或者没有）
         }
 
-        String[] args = line.substring(index1 + 1, index2).split(",");
+        String[] args = line.substring(index1 + 1, index2).split(","); //先把（）中的字符串取出来，然后用，分隔成字符串数组
 
         for (int i = 0; i < args.length; i++) {
-            args[i] = args[i].trim();
+            args[i] = args[i].trim();// 遍历字符串数组的每个字符串，并且把空白字符都去除掉，再次交给同一个数组对象保存
         }
 
-        handleEvent(line, args);
+        handleEvent(line, args); //将整行内容与字符串数组（括号中的字符串）都传入进去，一个handleEvent（）的方法中
     }
 
     /**
@@ -801,12 +802,12 @@ public class MonkeySourceScript implements MonkeyEventSource {
      * @throws IOException If there was an error closing the file.
      */
     private void closeFile() throws IOException {
-        mFileOpened = false;
+        mFileOpened = false; //表示，文件关闭
 
         try {
-            mFStream.close();
-            mInputStream.close();
-        } catch (NullPointerException e) {
+            mFStream.close(); //关闭文件输入流，释放内存
+            mInputStream.close(); //关闭字节输入流，释放内存
+        } catch (NullPointerException e) { //出现对象没有的情况，啥也不干，这时候往往是文件没有打开过，根本不需要从内存中释放
             // File was never opened so it can't be closed.
         }
     }
@@ -820,25 +821,25 @@ public class MonkeySourceScript implements MonkeyEventSource {
      * @throws IOException If there was an error reading the file.
      */
     private void readNextBatch() throws IOException {
-        int linesRead = 0;
+        int linesRead = 0; //表示读取了几行的局部变量
 
-        if (THIS_DEBUG) {
+        if (THIS_DEBUG) { //只有debug时，才会输出这个日志
             Logger.out.println("readNextBatch(): reading next batch of events");
         }
 
-        if (!mFileOpened) {
-            resetValue();
-            readHeader();
+        if (!mFileOpened) { //如果文件没有打开过……
+            resetValue(); //重置所有值为初始值
+            readHeader(); //读取文件的前面几行，跟检查事件源时调用的方法都一样
         }
 
-        if (mReadScriptLineByLine) {
-            linesRead = readOneLine();
+        if (mReadScriptLineByLine) { //如果标记了一行一行的读取脚本
+            linesRead = readOneLine();  //每次读取一行
         } else {
-            linesRead = readLines();
+            linesRead = readLines(); //一下子读取所有行
         }
 
-        if (linesRead == 0) {
-            closeFile();
+        if (linesRead == 0) { //当读取数量为0时
+            closeFile();  //关闭文件
         }
     }
 
@@ -860,25 +861,31 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     /**
      * Checks if the file can be opened and if the header is valid.
+     * 检查事件源是否有效，主要是检查脚本文件的开头
      *
      * @return True if the file exists and the header is valid, false otherwise.
      */
     @Override
     public boolean validate() {
-        boolean validHeader;
+        boolean validHeader; //标记是否事件源有效的方法
         try {
-            validHeader = readHeader();
-            closeFile();
+            validHeader = readHeader();  //读取文件的开头,保存结果到局部变量中
+            closeFile(); //关闭文件，释放内存
         } catch (IOException e) {
-            return false;
+            return false; //如果打开文件出现错误，即IOException，直接返回false，表示事件源都错误
         }
 
         if (mVerbose > 0) {
-            Logger.out.println("Replaying " + mEventCountInScript + " events with speed " + mSpeed);
+            Logger.out.println("Replaying " + mEventCountInScript + " events with speed " + mSpeed); //输出Replaying，要回放哪个脚本文件
         }
-        return validHeader;
+        return validHeader; //向Monkey主执行流返回检查结果
     }
 
+    /**
+     * 设置日志等级，可以用来控制日志的输出
+     *
+     * @param verbose output mode? 1= verbose, 2=very verbose
+     */
     @Override
     public void setVerbose(int verbose) {
         mVerbose = verbose;
@@ -952,14 +959,14 @@ public class MonkeySourceScript implements MonkeyEventSource {
      * added to the queue and null is returned.
      *
      * @return The first event in the event queue or null if the end of the file
-     *         is reached or if an error is encountered reading the file.
+     * is reached or if an error is encountered reading the file.
      */
     @Override
     public MonkeyEvent getNextEvent() {
-        long recordedEventTime = -1;
+        long recordedEventTime = -1; //记录事件的触发时间
         MonkeyEvent ev;
 
-        if (mQ.isEmpty()) {
+        if (mQ.isEmpty()) { //只有双向链表为空时，说明没有事件了，需要构造事件
             try {
                 readNextBatch();
             } catch (IOException e) {

@@ -21,7 +21,8 @@ import android.view.InputDevice;
 
 /**
  * monkey touch event
- * 触摸事件，同样继承于MonkeyMotionEvent
+ * 触摸事件，同样继承于MonkeyMotionEvent。
+ * MonkeyTouchEvent is a MonkeyMotionEvent
  */
 public class MonkeyTouchEvent extends MonkeyMotionEvent {
     /**
@@ -29,11 +30,11 @@ public class MonkeyTouchEvent extends MonkeyMotionEvent {
      * @param action 表示动作
      */
     public MonkeyTouchEvent(int action) {
-        super(MonkeyEvent.EVENT_TYPE_TOUCH, InputDevice.SOURCE_TOUCHSCREEN, action);
+        super(MonkeyEvent.EVENT_TYPE_TOUCH, InputDevice.SOURCE_TOUCHSCREEN, action); //传入参数为事件类型、事件来源、需要执行的事件动作
     }
 
     @Override
     protected String getTypeLabel() {
         return "Touch";
-    }
+    } //事件标签为Touch
 }

@@ -23,12 +23,16 @@ import android.view.InputDevice;
  * 轨迹球事件，继承MonkeyMotionEvent
  */
 public class MonkeyTrackballEvent extends MonkeyMotionEvent {
+    /**
+     *
+     * @param action 表示具体的轨迹球动作
+     */
     public MonkeyTrackballEvent(int action) {
-        super(MonkeyEvent.EVENT_TYPE_TRACKBALL, InputDevice.SOURCE_TRACKBALL, action);
+        super(MonkeyEvent.EVENT_TYPE_TRACKBALL, InputDevice.SOURCE_TRACKBALL, action); //传入参数，事件类型为EVENT_TYPE_TRACKBALL，事件来源为SOURCE_TRACKBALL
     }
 
     @Override
     protected String getTypeLabel() {
         return "Trackball";
-    }
+    } //事件标签用于打印日志，标记为Trackball
 }

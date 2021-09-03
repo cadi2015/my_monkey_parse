@@ -17,12 +17,12 @@
 package com.android.commands.monkey;
 
 /**
- * event source interface，表示具备monkey事件能力
+ * event source interface，表示具备事件源能力的接口，谁实现了该接口，谁就具备了作为事件源的能力
  */
 public interface MonkeyEventSource {
     /**
      * @return the next monkey event from the source
-     * 用于返回下一个事件
+     * 用于从事件源获取下一个事件
      */
     public MonkeyEvent getNextEvent();
 
@@ -38,7 +38,7 @@ public interface MonkeyEventSource {
      *
      * @return false if something fails, e.g. factor failure in random source or
      *         file can not open from script source etc
-     * 用于检查事件比例是否有效
+     * 用于检查事件源是否有效
      */
     public boolean validate();
 }

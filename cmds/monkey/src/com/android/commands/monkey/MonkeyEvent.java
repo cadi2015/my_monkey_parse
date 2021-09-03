@@ -21,18 +21,18 @@ import android.view.IWindowManager;
 
 /**
  * abstract class for monkey event
- * 表示Monkey事件的抽象类，它子类产生的对象，表示一个具体的事件
- * 程序中描述了8个事件，不过对于用户来说是不一样的……
+ * 表示Monkey事件的抽象类，子类产生的对象，表示一个具体的事件
+ * 程序中描述了9个事件，不过对于用户来说是不一样的……
  */
 public abstract class MonkeyEvent {
-    protected int eventType; //MonkeyEvent对象持有的事件类型
+    protected int eventType; //MonkeyEvent对象持有的事件类型，用于标记当前事件是哪个事件类型
     public static final int EVENT_TYPE_KEY = 0; //此常量值表示KEY事件，第1个
     public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件，第2个
     public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL，第3个
     public static final int EVENT_TYPE_ROTATION = 3;  // Screen rotation，第4个
     public static final int EVENT_TYPE_ACTIVITY = 4; //第5个
     public static final int EVENT_TYPE_FLIP = 5; // Keyboard flip 第6个
-    public static final int EVENT_TYPE_THROTTLE = 6; //延迟也算一个事件，只不过什么也没做而已，有道理 第7个
+    public static final int EVENT_TYPE_THROTTLE = 6; //延迟也算一个事件，线程停顿也算事件，有道理 第7个
     public static final int EVENT_TYPE_PERMISSION = 7; //第8个
     public static final int EVENT_TYPE_NOOP = 8; //第9个
 
@@ -44,12 +44,16 @@ public abstract class MonkeyEvent {
     // error code for security exception during injection
     public static final int INJECT_ERROR_SECURITY_EXCEPTION = -2; //表示注入事件时出现安全异常的错误码，同样父类中定义
 
+    /**
+     * 创建MonkeyEvent对象，必须调用的构造方法，必须指定事件类型
+     * @param type
+     */
     public MonkeyEvent(int type) {
         eventType = type;
     }
 
     /**
-     * @return event type
+     * @return event type 用于返回事件类型
      */
     public int getEventType() {
         return eventType;
@@ -57,8 +61,8 @@ public abstract class MonkeyEvent {
 
     /**
      * @return true if it is safe to throttle after this event, and false otherwise.
-     * 不是所有事件都支持中间可以插入一个停留的间隔时间的！所以才有这个方法
-     *  不支持的可以重写此方法，主要用于添加事件时使用
+     * 不是所有事件都支持在中间插入一个停留的间隔时间！所以才有这个方法
+     *  不支持的事件，可以重写此方法，主要用于添加事件时使用
      */
     public boolean isThrottlable() {
         return true;
@@ -66,12 +70,14 @@ public abstract class MonkeyEvent {
 
 
     /**
-     * a method for injecting event 该方法用于执行事件，建议使用WMS系统服务和AMS系统服务，建议函数用日志开关（当然子类可以不使用）
-     * @param iwm wires to current window manager
-     * @param iam wires to current activity manager
-     * @param verbose a log switch
+     * a method for injecting event 该方法用于具体执行事件，建议使用WMS系统服务和AMS系统服务，建议函数用日志开关（当然子类可以不使用）
+     * @param iwm wires to current window manager WMS系统服务
+     * @param iam wires to current activity manager AMS系统服务
+     * @param verbose a log switch log开关
      * @return INJECT_SUCCESS if it goes through, and INJECT_FAIL if it fails
-     *         in the case of exceptions, return its corresponding error code
+     *         in the case of exceptions, return its corresponding error code 返回值表示事件结果，一共有4种事件结果：成功、失败、远程服务错误、安全错误
+     *         每个子类具体实现如何真正执行一个事件
+     *
      */
     public abstract int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose);
 }
