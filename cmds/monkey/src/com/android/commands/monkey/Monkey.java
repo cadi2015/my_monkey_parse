@@ -66,9 +66,9 @@ public class Monkey {
      * All values should be zero when checking in.
      *
      */
-    private final static int DEBUG_ALLOW_ANY_STARTS = 0; //允许的调试选项?
+    private final static int DEBUG_ALLOW_ANY_STARTS = 0; //允许调试选项,当不等于0时，表示调试，此时所有Activity都可以启动
 
-    private final static int DEBUG_ALLOW_ANY_RESTARTS = 0; //允许的调试选项？
+    private final static int DEBUG_ALLOW_ANY_RESTARTS = 0; //调试是否可以重启Activity选项
 
     private IActivityManager mAm; //使用AMS服务,IActivityManager封装了AMS提供哪些服务，一个IActivityManager对象，所有实现该接口的对象均可
 
@@ -77,10 +77,10 @@ public class Monkey {
     private IPackageManager mPm; //使用PMS服务，IPackageManager规定了PMS提供哪些服务
 
     /** Command line arguments */
-    private String[] mArgs; //命令行参数
+    private String[] mArgs; //命令行参数，Monkey对象持有的字符串数组对象
 
     /** Current argument being parsed */
-    private int mNextArg; //用于指向数组中的某个命令行参数，第一个命令行参数的下标是0
+    private int mNextArg; //用于指向数组中的某个命令行参数，第一个命令行参数的下标是0，表示当前需要解析的命令行参数下标
 
     /** Data of current argument */
     private String mCurArgData;
@@ -96,19 +96,19 @@ public class Monkey {
 
     /** Ignore security exceptions when launching activities */
     /** (The activity launch still fails, but we keep pluggin' away) */
-    private boolean mIgnoreSecurityExceptions; //是否忽略安全异常?
+    private boolean mIgnoreSecurityExceptions; //是否忽略安全异常？虽然Activity仍然会运行失败，但是我们可以保持插件
 
     /** Monitor /data/tombstones and stop the monkey if new files appear. */
-    private boolean mMonitorNativeCrashes; //是否需要监控/data/tombstones目录（监控native异常）
+    private boolean mMonitorNativeCrashes; //是否需要监控/data/tombstones目录（监控native异常）如果有新的文件产生
 
     /** Ignore any native crashes while running? */
-    private boolean mIgnoreNativeCrashes; //忽略任何native异常
+    private boolean mIgnoreNativeCrashes; //忽略任何native异常，开启后，出现native崩溃，Monkey程序不会停止
 
     /** Send no events. Use with long throttle-time to watch user operations */
-    private boolean mSendNoEvents;
+    private boolean mSendNoEvents; //任何事件都不发送，给用户看的，debug用的
 
     /** This is set when we would like to abort the running of the monkey. */
-    private boolean mAbort; //标记monkey进程,程序是否中断
+    private boolean mAbort; //标记monkey进程,程序是否中断的标志位
 
     /**
      * Count each event as a cycle. Set to false for scripts so that each time
@@ -161,7 +161,7 @@ public class Monkey {
     private boolean mRequestPeriodicBugreport = false;
 
     /** Bugreport frequency. */
-    private long mBugreportFrequency = 10;
+    private long mBugreportFrequency = 10; //整点数，上报bugreport
 
     /** Failure process name */
     private String mReportProcessName; //用于存储上报进程的名字
@@ -175,13 +175,13 @@ public class Monkey {
     private boolean mKillProcessAfterError; //用于标记是否再ANR错误后，干掉进程（不然重启）
 
     /** Generate hprof reports before/after monkey runs */
-    private boolean mGenerateHprof;
+    private boolean mGenerateHprof; //在运行Monkey程序前、和运行Monkey程序后，是否生成一份内存信息
 
     /** If set, only match error if this text appears in the description text. */
-    private String mMatchDescription; //如果在命令行设置了这个，表示包含内容的才做？
+    private String mMatchDescription; //如果在命令行设置了这个，表示线程堆栈中包含该字符串的，才会执行到bugreport
 
     /** Package denylist file. */
-    private String mPkgBlacklistFile;
+    private String mPkgBlacklistFile; //表示用于设置黑名单的文件名
 
     /** Package allowlist file. */
     private String mPkgWhitelistFile; //用于持有白名单文件名
@@ -190,10 +190,10 @@ public class Monkey {
     private ArrayList<String> mMainCategories = new ArrayList<String>(); //分类用的list对象
 
     /** Applications we can switch to. */
-    private ArrayList<ComponentName> mMainApps = new ArrayList<ComponentName>(); //存储组件名的list对象（app），这些都是被成功启动Activity的信息
+    private ArrayList<ComponentName> mMainApps = new ArrayList<ComponentName>(); //存储组件名的list对象（app），这些都是可以被启动应用的信息
 
     /** The delay between event inputs **/
-    long mThrottle = 0; //事件的延迟时间
+    long mThrottle = 0; //两个事件之间的延迟时间
 
     /** Whether to randomize each throttle (0-mThrottle ms) inserted between events. */
     boolean mRandomizeThrottle = false; //是否需要0-xx毫秒的随机延迟时间
@@ -208,9 +208,9 @@ public class Monkey {
     Random mRandom = null; //持有的Random对象
 
     /** Dropped-event statistics **/
-    long mDroppedKeyEvents = 0;
+    long mDroppedKeyEvents = 0; //用于记录丢失的key事件
 
-    long mDroppedPointerEvents = 0;
+    long mDroppedPointerEvents = 0; //记录丢失的Point事件
 
     long mDroppedTrackballEvents = 0;
 
@@ -219,30 +219,30 @@ public class Monkey {
     long mDroppedRotationEvents = 0;
 
     /** The delay between user actions. This is for the scripted monkey. **/
-    long mProfileWaitTime = 5000;
+    long mProfileWaitTime = 5000; //在脚本文件中执行事件时，两个动作之间的延迟时间
 
     /** Device idle time. This is for the scripted monkey. **/
-    long mDeviceSleepTime = 30000;
+    long mDeviceSleepTime = 30000; //设备的空闲时间，也用于脚本文件中启动Monkey
 
-    boolean mRandomizeScript = false;
+    boolean mRandomizeScript = false; //标记是否采用随机脚本文件中的1个
 
-    boolean mScriptLog = false;
+    boolean mScriptLog = false; //目前还没有什么用途
 
     /** Capture bugreprot whenever there is a crash. **/
-    private boolean mRequestBugreport = false;
+    private boolean mRequestBugreport = false; //当发生崩溃时，是否需要请求bugreport
 
     /** a filename to the setup script (if any) */
-    private String mSetupFileName = null;
+    private String mSetupFileName = null; //用于记录初始化的文件名，作为脚本文件
 
     /** filenames of the script (if any) */
-    private ArrayList<String> mScriptFileNames = new ArrayList<String>();
+    private ArrayList<String> mScriptFileNames = new ArrayList<String>(); //用于保存每个脚本文件的名字，一个动态数组
 
     /** a TCP port to listen on for remote commands. */
-    private int mServerPort = -1;
+    private int mServerPort = -1; //远程Monkey时，需要监听的端口号
 
     private static final File TOMBSTONES_PATH = new File("/data/tombstones"); //native崩溃日志目录
 
-    private static final String TOMBSTONE_PREFIX = "tombstone_";
+    private static final String TOMBSTONE_PREFIX = "tombstone_"; //native崩溃生成的前缀文件名
 
     private static int NUM_READ_TOMBSTONE_RETRIES = 5; //表示tombsone文件是否正在写入的重试次数
 
@@ -250,7 +250,7 @@ public class Monkey {
 
     float[] mFactors = new float[MonkeySourceRandom.FACTORZ_COUNT]; //创建一个float数组对象，存放12个元素，每个元素值表示某个事件的比例，不同的下标代表不同的事件类型
 
-    MonkeyEventSource mEventSource; //持有的MonkeyEventSource对象（实际对象为子类对象，即MonkeySourceNetwork……
+    MonkeyEventSource mEventSource; //持有的MonkeyEventSource对象（实际对象为子类对象，即MonkeySourceNetwork、MonkeySourceRandom等等）
 
     private MonkeyNetworkMonitor mNetworkMonitor = new MonkeyNetworkMonitor(); //持有的MonkeyNetworkMonitor对象，用于监控网络
 
@@ -267,7 +267,7 @@ public class Monkey {
      */
     private class ActivityController extends IActivityController.Stub {
         /**
-         *  当某个Activity启动时，AMS系统服务回调此方法（这个方法在哪个线程中执行？）
+         *  当某个Activity启动时，AMS系统服务回调此方法（这个方法在哪个线程中执行？在Binder线程池中的某个线程中执行）
          * @param intent 启动Activity时的Intent对象（Intent为可序列化）
          * @param pkg 启动的包名（String也为可序列化）
          * @return 是否允许启动Activity，靠，难道这里能控制AMS的行为，还真能控制……，返回true表示允许启动Activity（在内存中的骚操作）
@@ -283,7 +283,7 @@ public class Monkey {
                 // harmless dropbox uploads from monkeys.
                 StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites();
                 Logger.out.println("    // " + (allow ? "Allowing" : "Rejecting") + " start of "
-                        + intent + " in package " + pkg);
+                        + intent + " in package " + pkg); //输出：同意或者拒绝的Intent信息、以及包信息
                 StrictMode.setThreadPolicy(savedPolicy);
             }
             currentPackage = pkg; //将AMS启动的包名保存到currentPackage中，Monkey即可知道正在启动的是哪个应用（个别需求会用到）
@@ -292,7 +292,7 @@ public class Monkey {
         }
 
         /**
-         *  用于检查Activity是否允许启动，最终的结果会被AMS采纳，然后AMS启动Activity
+         *  用于检查Activity是否允许启动，最终的结果会被AMS采纳，然后AMS再启动Activity
          * @param intent 传入的Intent对象
          * @param pkg 传入包名
          * @return 是否允许启动Activity
@@ -317,7 +317,7 @@ public class Monkey {
                     final String launcherPackage = resolveInfo.activityInfo.packageName; //获取Launcher的包名
                     if (pkg.equals(launcherPackage)) {
                         return true;
-                    } //如果应用是Launcher应用，那必须可以启动此Activity，返回true
+                    } //如果应用是Launcher应用，那必须可以启动此Activity，返回true，表示同意启动Activity
                 } catch (RemoteException e) {
                     Logger.err.println("** Failed talking with package manager!"); //当PMS系统服务出错，走这里，保证程序不退出
                     return false; //此时返回false，表示不允许启动Activity
@@ -327,7 +327,7 @@ public class Monkey {
         }
 
         /**
-         * 当一个Activity准备好，AMS会回调此方法
+         * 当一个Activity回调onResume（）的时候，AMS会回调此方法
          * @param pkg
          * @return
          */
@@ -367,7 +367,7 @@ public class Monkey {
             Logger.err.println("// Build Label: " + Build.FINGERPRINT);
             Logger.err.println("// Build Changelist: " + Build.VERSION.INCREMENTAL);
             Logger.err.println("// Build Time: " + Build.TIME);
-            Logger.err.println("// " + stackTrace.replace("\n", "\n// "));
+            Logger.err.println("// " + stackTrace.replace("\n", "\n// ")); //这就是为啥线程堆栈前都有两个//的原因
             StrictMode.setThreadPolicy(savedPolicy); //严格模式
 
             if (mMatchDescription == null
@@ -489,25 +489,25 @@ public class Monkey {
      */
     private void reportAnrTraces() {
         try {
-            Thread.sleep(5 * 1000); //这了是为了anr的trace文件做出改变！等待5s所以
+            Thread.sleep(5 * 1000); //这是为了等待anr的trace文件生成！Monkey进程（主线程）等待5s
         } catch (InterruptedException e) {
         }
 
         // The /data/anr directory might have multiple files, dump the most
-        // recent of those files.
+        // recent of those files. /data/anr目录下有多个文件，只选择dump出最近的文件（最新的文件）
         File[] recentTraces = new File("/data/anr/").listFiles(); //先获取/data/anr/下的所有目录与文件，listFiles（）返回的是File数组对象
         if (recentTraces != null) { // /data/anr/存在文件时
             File mostRecent = null; //用于记录最后一次修改的文件（最近修改）
             long mostRecentMtime = 0;
             for (File trace : recentTraces) { //遍历每一个文件
-                final long mtime = trace.lastModified(); //获取上一次的修改时间
+                final long mtime = trace.lastModified(); //获取文件最后一次的修改时间
                 if (mtime > mostRecentMtime) {
                     mostRecentMtime = mtime;
                     mostRecent = trace;
                 }
             }
 
-            if (mostRecent != null) {
+            if (mostRecent != null) { //对最后一次修改的文件进行操作（最新的文件）
                 commandLineReport("anr traces", "cat " + mostRecent.getAbsolutePath()); //竟然使用的是cat命令，读取最后一次修改文件的内容，传入的报告名称是anr trace，但是cat命令不一定会做持久化工作,这里主要是将anr的内容写入到标准输出中
             }
         }
@@ -577,14 +577,14 @@ public class Monkey {
             } //读取完子进程的标准输出与标准错误，或者磁盘没有空间，循环结束
 
             int status = p.waitFor(); //在这里，Monkey主进程（主线程）会做等待（被阻塞），等待子进程执行的命令行程序（可执行文件）结束，当然不仅仅是bugreport（进程间同步），还要获取子进程的退出状态码
-            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，Monkey向标准错误中打印报告日志的文件名，以及打印子进程的退出状态码
+            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，Monkey主进程向标准错误中打印报告日志的文件名，以及打印子进程的退出状态码
 
             if (logOutput != null) { //如果存在输出字符流对象
                 logOutput.close(); //关闭输出字符串流对象（释放内存）
             }
         } catch (Exception e) { //捕获到任何其他的异常
             Logger.err.println("// Exception from " + reportName + ":");
-            Logger.err.println(e.toString()); //直接到标准错误流中输出内容
+            Logger.err.println(e.toString()); //直接将字符串内容输出到标准错误流中
         }
     }
 
@@ -787,7 +787,7 @@ public class Monkey {
 
         //下面这部分代码，都是在运行事件流结束后（runMonkeyCycles（）方法结束）才会走到这里（应该是用于收尾工作的代码）
         synchronized (this) { //Monkey主线程需要先获取Monkey对象锁，才能继续执行以下的代码块，这是为了与binder线程进行线程间的同步，因为他们都访问同样的共享变量，缺点是下面的代码与runMonkeyCycles（）中的一部分有重复，目的是为了收集日志
-            if (mRequestAnrTraces) { //当AMS发现某个app出现Anr，通过远程调用appNotResponse（）方法，然后该值mRequestAnrTraces会在当前monkey进程的binder线程池中某个线程赋值为true（由于binder线程池某个线程已经持有Monkey对象锁）
+            if (mRequestAnrTraces) { //当AMS发现某个app出现Anr，通过远程调用appNotResponse（）方法，然后该值mRequestAnrTraces会在当前monkey进程的binder线程池中某个线程中赋值为true（由于binder线程池某个线程已经持有Monkey对象锁）
                 reportAnrTraces(); //调用者获取anr trace信息，其实只是向标准输出流中打印anr的数据
                 mRequestAnrTraces = false; //表示已经执行过anr trace的获取，不需要获取了
             }
@@ -821,7 +821,7 @@ public class Monkey {
 
         //继续收尾工作
         if (mGenerateHprof) {
-            signalPersistentProcesses();
+            signalPersistentProcesses(); //Monkey程序运行结束后，生成一份内存信息位于/data/misc目录下
             if (mVerbose > 0) {
                 Logger.out.println("// Generated profiling reports in /data/misc");
             }

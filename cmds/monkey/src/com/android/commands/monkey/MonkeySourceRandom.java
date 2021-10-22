@@ -382,7 +382,7 @@ public class MonkeySourceRandom implements MonkeyEventSource {
         mQ.addLast(new MonkeyTouchEvent(MotionEvent.ACTION_UP)
                 .setDownTime(downAt) //为啥还记录的按下的时间？
                 .addPointer(0, p1.x, p1.y)
-                .setIntermediateNote(false)); //最后再添加一个ACTION_UP事件，如果是点事件，则至少添加了两个元素对象到mQ中，一个ACTION_DOWN、一个ACTION_UP
+                .setIntermediateNote(false)); //最后再添加一个ACTION_UP事件，如果是点事件，则至少添加了两个元素对象到mQ中，一个ACTION_DOWN、一个ACTION_UP、并且不是过渡事件
     }
 
     /**

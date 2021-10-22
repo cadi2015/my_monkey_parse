@@ -27,7 +27,7 @@ import android.view.InputDevice;
 public class MonkeyTouchEvent extends MonkeyMotionEvent {
     /**
      *
-     * @param action 表示动作
+     * @param action 表示动作,创建MonkeyTouchEvent对象，必须指定一个action
      */
     public MonkeyTouchEvent(int action) {
         super(MonkeyEvent.EVENT_TYPE_TOUCH, InputDevice.SOURCE_TOUCHSCREEN, action); //传入参数为事件类型、事件来源、需要执行的事件动作
