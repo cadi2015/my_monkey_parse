@@ -378,17 +378,17 @@ public class Monkey {
                     synchronized (Monkey.this) { //线程间同步，appCrashed（）方法在Monkey进程自己的Binder线程池中的某个线程中运行，这样Binder线程池里的线程会与Monkey的主线程竞争同一个对象锁（线程间同步）
                                                  //Monkey主线程，每循环一次才释放一次Monkey对象锁，如果Monkey主线程一直持有Monkey对象不放，则Binder线程池里的线程会一直被阻塞，等待这个Monkey对象锁被释放，这种情况下，AMS线程就会被这个Binder线程池中的线程影响
                         if (!mIgnoreCrashes) { //如果没有设置忽略崩溃的选项
-                            mAbort = true; //设置Monkey进程会被中断的标志位为true
+                            mAbort = true; //设置Monkey进程会被中断的标志位为true,此共享变量需要保护
                         }
                         if (mRequestBugreport){ //如果用户设置了需要崩溃报告
-                            mRequestAppCrashBugreport = true; //设置需要上报App崩溃的标志位，monkey主进程会在循环中读取这个值
-                            mReportProcessName = processName; //设置需要上报的进程名字
+                            mRequestAppCrashBugreport = true; //设置需要上报App崩溃的标志位，monkey主进程会在循环中读取这个值，此共享变量需要保护
+                            mReportProcessName = processName; //设置需要上报的进程名字 此共享变量需要保护（只保护需要写的共享变量）
                         }
-                    } //这里，Binder线程池中的线程，会释放对象锁，Monkey主进程（主线程）获取到对象锁会继续执行（用对象锁，做的线程间同步）
-                    return !mKillProcessAfterError; //这个值，是给AMS用的……默认值一定返回的是true啊，出现Crash，要求系统重启app进程……
+                    } //这里，Binder线程池中的工作线程，会释放对象锁，Monkey主进程（主线程）获取到对象锁才会继续执行（用对象锁，做的线程间同步）
+                    return !mKillProcessAfterError; //这个值，是给AMS用的……默认值一定返回的是true啊，出现Crash，要求系统重启app进程……怪不得设置了忽略App崩溃之后自动重启了呢
                 }
             }
-            return false; //当一个App进程出现崩溃后触发，返回true时，表示可以重启进程，当返回false时，表示立即杀死它（进程）,AMS如何处理该进程……
+            return false; //当一个App进程出现崩溃后触发，返回true时，表示AMS重启进程（所以你很快可以看到重启的应用），当返回false时，表示立即杀死它（进程）,返回值表示AMS如何处理该进程……
         }
 
         /**
@@ -451,8 +451,8 @@ public class Monkey {
 
             synchronized (Monkey.this) { //竞争对象锁，Binder线程池中的某个线程，只有竞争到对象锁，才能执行代码块中的方法
                 if (mMatchDescription == null || message.contains(mMatchDescription)) { //如果没有设置匹配信息或者设置了匹配信息并包含的情况下
-                    if (!mIgnoreCrashes) { //如果没有设置忽略崩溃
-                        mAbort = true; //修改共享变量，用于Monkey程序结束，主线程结束，即Monkey程序结束
+                    if (!mIgnoreCrashes) { //如果没有设置忽略崩溃，系统无响应时，Monkey程序也会结束
+                        mAbort = true; //修改共享变量（写入），用于Monkey程序结束，主线程结束，即Monkey程序结束
                     }
                     if (mRequestBugreport) { //如果在命令行中执行的需要bugreport
                         mRequestWatchdogBugreport = true; //修改共享变量，需要bugreport
@@ -460,7 +460,7 @@ public class Monkey {
                 }
                 mWatchdogWaiting = true; //修改共享变量（共享内存），watchDog的标志位为true
             } //释放Monkey对象锁，这里为何要释放对象锁，莫非想要monkey程序继续运行？
-            synchronized (Monkey.this) { //再次获取对象锁，如果没有获取到，Binder线程池中的线程将被阻塞在这里
+            synchronized (Monkey.this) { //再次获取对象锁，如果没有获取到，Binder线程池中的某个工作线程将被阻塞在这里
                 while (mWatchdogWaiting) { //如果需要watchDog等待
                     try {
                         Monkey.this.wait(); //Binder线程池的线程将一直停留在这里，等待Monkey对象锁
@@ -500,15 +500,15 @@ public class Monkey {
             File mostRecent = null; //用于记录最后一次修改的文件（最近修改）
             long mostRecentMtime = 0;
             for (File trace : recentTraces) { //遍历每一个文件
-                final long mtime = trace.lastModified(); //获取文件最后一次的修改时间
-                if (mtime > mostRecentMtime) {
-                    mostRecentMtime = mtime;
-                    mostRecent = trace;
+                final long mtime = trace.lastModified(); //获取每个文件最后一次的修改时间
+                if (mtime > mostRecentMtime) { //如果当前修改时间大于最近的修改时间(越往后的时间越大），遍历结束后会找到所有文件中最新修改的一个文件
+                    mostRecentMtime = mtime; //更新最近的修改时间
+                    mostRecent = trace; //更新最近的一个trace文件对象
                 }
             }
 
-            if (mostRecent != null) { //对最后一次修改的文件进行操作（最新的文件）
-                commandLineReport("anr traces", "cat " + mostRecent.getAbsolutePath()); //竟然使用的是cat命令，读取最后一次修改文件的内容，传入的报告名称是anr trace，但是cat命令不一定会做持久化工作,这里主要是将anr的内容写入到标准输出中
+            if (mostRecent != null) { //对最后一次修改的文件进行操作（最新修改的文件）
+                commandLineReport("anr traces", "cat " + mostRecent.getAbsolutePath()); //竟然使用的是cat命令（cat程序），读取最后一次修改文件的内容，传入的报告名称是anr trace，但是cat命令不一定会做持久化工作,这里主要是将anr的内容写入到标准输出中
             }
         }
     }
@@ -550,7 +550,7 @@ public class Monkey {
             if (mRequestBugreport) { //检查命令行参数中是否传入了需要使用bugreport
                 logOutput =
                         new BufferedWriter(new FileWriter(new File(Environment //创建可缓存的输出字符流
-                                .getLegacyExternalStorageDirectory(), reportName), true)); //创建一个通道，从内存中向reportName命名的文件中写入日志
+                                .getLegacyExternalStorageDirectory(), reportName), true)); //创建一个通道，从内存中向reportName命名的文件中写入日志，这个文件的路径是Environment的静态方法getLegacyExternalStorageDirectory（）返回的路径
             }
             // pipe everything from process stdout -> System.err，管道通常获取到的数据是进程的标准输出、标准错误？（这里使用了管道）Monkey主进程作为获取输入流的进程  即 子进程 | Monkey进程
             InputStream inStream = p.getInputStream(); //获取子进程的标准输入流对象（将子进程的标准输出信息、标准错误读取到内存中）……，这里可以获取到的是子进程的标准输出与标准错误数据，我猜测Monkey主进程会等待子进程完成工作，为啥InputStream对象可以这样？
@@ -1237,7 +1237,7 @@ public class Monkey {
                         mRequestDumpsysMemInfo = false; //防止下次循环中直接执行（或者说，只能由AMS来赋值）
                         shouldReportDumpsysMemInfo = true; //标记应该上报内存信息
                     }
-                    if (mMonitorNativeCrashes) { //如果需要监控native的崩溃信息，由命令行参数--monitor-native-crashes决定
+                    if (mMonitorNativeCrashes) { //如果需要监控native的崩溃信息，由命令行参数--monitor-native-crashes决定，每次执行完一个事件，即会
                         // first time through, when eventCounter == 0, just set up
                         // the watcher (ignore the error)
                         if (checkNativeCrashes() && (eventCounter > 0)) { //发现本地崩溃，且事件数量大于0（这里没有系统服务的回调，而是一直目录中的文件数量）
@@ -1419,7 +1419,7 @@ public class Monkey {
         boolean isWritten = false;
         try {
             // Ensure file is done writing by sleeping and comparing the previous and current size
-            for (int i = 0; i < NUM_READ_TOMBSTONE_RETRIES; i++) {  //确保文件已经写完了，只重试5次（相当于只等5s
+            for (int i = 0; i < NUM_READ_TOMBSTONE_RETRIES; i++) {  //确保文件已经写完了，只重试5次（相当于最多等5s
                 long size = Files.size(path); //获取文件的字节数（注意不是行数）
                 try {
                     Thread.sleep(1000); //线程休息1秒
@@ -1537,7 +1537,7 @@ public class Monkey {
 
     /**
      * Print how to use this command.
-     * 告知用户怎么使用monkey命令行
+     * 告知用户怎么使用monkey命令行，字符串会输出到标注错误流中
      */
     private void showUsage() {
         StringBuffer usage = new StringBuffer();

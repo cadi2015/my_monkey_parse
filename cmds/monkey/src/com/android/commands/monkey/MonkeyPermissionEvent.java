@@ -41,10 +41,10 @@ public class MonkeyPermissionEvent extends MonkeyEvent {
 
     /**
      *
-     * @param iwm wires to current window manager WMS系统服务
-     * @param iam wires to current activity manager AMS系统服务
-     * @param verbose a log switch log开关
-     * @return
+     * @param iwm wires to current window manager WMS系统服务 未使用
+     * @param iam wires to current activity manager AMS系统服务 未使用
+     * @param verbose a log switch log开关 未使用
+     * @return 表示注入事件的结果
      */
     @Override
     public int injectEvent(IWindowManager iwm, IActivityManager iam, int verbose) {

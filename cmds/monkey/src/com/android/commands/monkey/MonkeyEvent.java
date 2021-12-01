@@ -25,7 +25,7 @@ import android.view.IWindowManager;
  * 程序中描述了9个事件，不过对于用户来说是不一样的……
  */
 public abstract class MonkeyEvent {
-    protected int eventType; //MonkeyEvent对象持有的事件类型，用于标记当前事件是哪个事件类型
+    protected int eventType; //MonkeyEvent对象持有的事件类型，用于标记当前事件是哪个事件类型，所有子类复用
     public static final int EVENT_TYPE_KEY = 0; //此常量值表示KEY事件，第1个
     public static final int EVENT_TYPE_TOUCH = 1; //表示TOUCH事件，第2个
     public static final int EVENT_TYPE_TRACKBALL = 2; //TRACKBALL，第3个
@@ -70,7 +70,7 @@ public abstract class MonkeyEvent {
 
 
     /**
-     * a method for injecting event 该方法用于具体执行事件，建议使用WMS系统服务和AMS系统服务，建议函数用日志开关（当然子类可以不使用）
+     * a method for injecting event 该方法用于具体执行事件，建议使用WMS系统服务和AMS系统服务，建议函数用日志开关（当然子类也可以不使用）
      * @param iwm wires to current window manager WMS系统服务
      * @param iam wires to current activity manager AMS系统服务
      * @param verbose a log switch log开关
