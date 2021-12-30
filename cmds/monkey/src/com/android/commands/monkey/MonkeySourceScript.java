@@ -44,7 +44,7 @@ import java.util.Random;
  * ...
  * </pre>
  * MonkeySourceScript is a MonkeyEventSource
- * 从脚本事件源中获取事件，写的很好
+ * 从脚本文件中获取事件，写的很好
  */
 public class MonkeySourceScript implements MonkeyEventSource {
     private int mEventCountInScript = 0; // total number of events in the file //表示脚本数量
@@ -55,7 +55,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     private String mScriptFileName; //脚本文件的名称
 
-    private MonkeyEventQueue mQ; //双向队列
+    private MonkeyEventQueue mQ; //双向链表对象
 
     private static final String HEADER_COUNT = "count=";
 
@@ -89,7 +89,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
     private static final int MAX_ONE_TIME_READS = 100;
 
     // event key word in the capture log
-    private static final String EVENT_KEYWORD_POINTER = "DispatchPointer";
+    private static final String EVENT_KEYWORD_POINTER = "DispatchPointer"; //规定的事件名
 
     private static final String EVENT_KEYWORD_TRACKBALL = "DispatchTrackball";
 
@@ -166,21 +166,22 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     /**
      * Creates a MonkeySourceScript instance.
-     *
-     * @param filename The filename of the script (on the device).
-     * @param throttle The amount of time in ms to sleep between events.
+     * 用于创建MonkeySourceScript对象
+     * 必须传入Random对象
+     * @param filename The filename of the script (on the device).  脚本文件名，在设备中的文件（完整路径）
+     * @param throttle The amount of time in ms to sleep between events. 事件之间的间隔时间
      */
     public MonkeySourceScript(Random random, String filename, long throttle,
                               boolean randomizeThrottle, long profileWaitTime, long deviceSleepTime) {
-        mScriptFileName = filename;
-        mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle);
-        mProfileWaitTime = profileWaitTime;
-        mDeviceSleepTime = deviceSleepTime;
+        mScriptFileName = filename; //由持有的mScriptFileName保存脚本文件名
+        mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle); //创建双向链表对象
+        mProfileWaitTime = profileWaitTime; //加载文件时的等待时间
+        mDeviceSleepTime = deviceSleepTime; //设备的休眠时间
     }
 
     /**
      * Resets the globals used to timeshift events.
-     * 这么用于存储的实例变量
+     * 重置当前对象持有的实例变量
      */
     private void resetValue() {
         mLastRecordedDownTimeKey = 0;
@@ -193,7 +194,7 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     /**
      * Reads the header of the script file.
-     *
+     * 从脚本文件中读取header信息
      * @return True if the file header could be parsed, and false otherwise. 表示解析文件开头的结果，false表示解析失败
      * @throws IOException If there was an error reading the file. 该方法出现IOException，不会自己处理，需要调用者来处理IOException
      */
@@ -208,15 +209,15 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
         //这里是在每一行去查找需要的内容
         while ((line = mBufferedReader.readLine()) != null) { //读取一行内容，如果有内容，就继续执行
-            line = line.trim(); //去除掉一行中的收尾的空白字符
+            line = line.trim(); //去除掉一行中的首尾的空白字符（空格、换行、还有制表符）
 
-            if (line.indexOf(HEADER_COUNT) >= 0) { // 找到某行是否标记有count=，且将HEADER_COUNT在某行首次出现的位置与0进行比较
+            if (line.indexOf(HEADER_COUNT) >= 0) { // 处理header_count行，如果某行字符串标记有count=，且将HEADER_COUNT在某行首次出现的位置与0进行比较，大于等于0时，说明存在
                 try {
-                    String value = line.substring(HEADER_COUNT.length() + 1).trim();
+                    String value = line.substring(HEADER_COUNT.length() + 1).trim(); //提取count=后面的字符串，即事件数量
                     mEventCountInScript = Integer.parseInt(value); //提取在脚本文件中标记的事件数量，将字符串解析成整型
-                } catch (NumberFormatException e) { //如果提取的字符串无法转化成整型
-                    Logger.err.println("" + e); //在标准错误流中输出日志
-                    return false;  //返回解析header错误的结果
+                } catch (NumberFormatException e) { //如果提取的字符串无法转化成整型时，会出现NumberFormatException异常
+                    Logger.err.println("" + e); //先在标准错误流中输出日志
+                    return false;  //再返回false，表示解析header时出现错误
                 }
             } else if (line.indexOf(HEADER_SPEED) >= 0) { //找到speed=首次出现在某行的位置，看来是一行写一个了……
                 try {

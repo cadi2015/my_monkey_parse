@@ -16,7 +16,7 @@
 package com.android.commands.monkey;
 
 /**
- * 用于提示用户的自定义异常类
+ * 用于提示用户的自定义异常类，看看在哪创建了该对象？
  */
 public class MonkeyViewException extends java.lang.Exception {
     /**

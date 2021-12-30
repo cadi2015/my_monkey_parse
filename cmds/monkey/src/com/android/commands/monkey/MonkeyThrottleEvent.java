@@ -28,7 +28,11 @@ import android.view.IWindowManager;
  */
 public class MonkeyThrottleEvent extends MonkeyEvent {
     private long mThrottle;  //MonkeyThrottleEvent对象持有的间隔时间
-        
+
+    /**
+     * 创建对象时，需要传入间隔时间
+     * @param throttle 间隔时间
+     */
     public MonkeyThrottleEvent(long throttle) {
         super(MonkeyEvent.EVENT_TYPE_THROTTLE); //事件类型为EVENT_TYPE_THROTTLE
         mThrottle = throttle; //创建MonkeyThrottleEvent对象时，初始化间隔时间
