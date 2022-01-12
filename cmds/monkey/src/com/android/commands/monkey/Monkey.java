@@ -164,7 +164,7 @@ public class Monkey {
     private long mBugreportFrequency = 10; //整点数，上报bugreport
 
     /** Failure process name */
-    private String mReportProcessName; //用于存储上报进程的名字
+    private String mReportProcessName; //用于存储上报进程的名字,Monkey对象持有
 
     /**
      * This is set by the ActivityController thread to request a "procrank"
@@ -172,7 +172,7 @@ public class Monkey {
     private boolean mRequestProcRank = false;
 
     /** Kill the process after a timeout or crash. */
-    private boolean mKillProcessAfterError; //用于标记是否再ANR错误后，干掉进程（不然重启）
+    private boolean mKillProcessAfterError; //用于标记AppCrash、ANR错误后，是否需要AMS干掉进程（不然会重启？）
 
     /** Generate hprof reports before/after monkey runs */
     private boolean mGenerateHprof; //在运行Monkey程序前、和运行Monkey程序后，是否生成一份内存信息
@@ -361,8 +361,8 @@ public class Monkey {
                 String shortMsg, String longMsg,
                 long timeMillis, String stackTrace) {
             StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites(); //
-            Logger.err.println("// CRASH: " + processName + " (pid " + pid + ")"); //向标准错误流中输出日志（binder线程）
-            Logger.err.println("// Short Msg: " + shortMsg); //向标准错误流中输出日志（到屏幕中）
+            Logger.err.println("// CRASH: " + processName + " (pid " + pid + ")"); //向标准错误流中输出日志（该方法在当前进程的binder线程中执行）
+            Logger.err.println("// Short Msg: " + shortMsg); //向标准错误流中输出日志（默认到屏幕中）
             Logger.err.println("// Long Msg: " + longMsg);
             Logger.err.println("// Build Label: " + Build.FINGERPRINT);
             Logger.err.println("// Build Changelist: " + Build.VERSION.INCREMENTAL);
@@ -374,18 +374,18 @@ public class Monkey {
                     || shortMsg.contains(mMatchDescription)
                     || longMsg.contains(mMatchDescription)
                     || stackTrace.contains(mMatchDescription)) { //当没有设置匹配的堆栈信息时、或者短信息包含指定的内容、或者长消息包括指定的内容、或者堆栈信息包含指定的内容，会走这里
-                if (!mIgnoreCrashes || mRequestBugreport) { //如果没有设置忽略崩溃，或者需要请求bugreport，会走这里
+                if (!mIgnoreCrashes || mRequestBugreport) { //如果没有设置忽略崩溃，或者必须得需要bugreport，会走这里
                     synchronized (Monkey.this) { //线程间同步，appCrashed（）方法在Monkey进程自己的Binder线程池中的某个线程中运行，这样Binder线程池里的线程会与Monkey的主线程竞争同一个对象锁（线程间同步）
                                                  //Monkey主线程，每循环一次才释放一次Monkey对象锁，如果Monkey主线程一直持有Monkey对象不放，则Binder线程池里的线程会一直被阻塞，等待这个Monkey对象锁被释放，这种情况下，AMS线程就会被这个Binder线程池中的线程影响
                         if (!mIgnoreCrashes) { //如果没有设置忽略崩溃的选项
-                            mAbort = true; //设置Monkey进程会被中断的标志位为true,此共享变量需要保护
+                            mAbort = true; //修改共享变量mAbort，Monkey进程（主线程）读取中断的标志位发现true,会因此结束程序。此共享变量需要保护，所以使用对象锁，防止同时写入
                         }
                         if (mRequestBugreport){ //如果用户设置了需要崩溃报告
-                            mRequestAppCrashBugreport = true; //设置需要上报App崩溃的标志位，monkey主进程会在循环中读取这个值，此共享变量需要保护
-                            mReportProcessName = processName; //设置需要上报的进程名字 此共享变量需要保护（只保护需要写的共享变量）
+                            mRequestAppCrashBugreport = true; //binder线程修改此共享变量，它表示需要AppCrashBugreport的标志位，monkey主进程（主线程）会一直在事件循环中读取这个共享变量
+                            mReportProcessName = processName; //设置需要上报的进程名字（程序名） 此共享变量需要保护（只保护需要写的共享变量）
                         }
-                    } //这里，Binder线程池中的工作线程，会释放对象锁，Monkey主进程（主线程）获取到对象锁才会继续执行（用对象锁，做的线程间同步）
-                    return !mKillProcessAfterError; //这个值，是给AMS用的……默认值一定返回的是true啊，出现Crash，要求系统重启app进程……怪不得设置了忽略App崩溃之后自动重启了呢
+                    } //这里，Binder线程池中的工作线程，会释放对象锁，Monkey主进程（主线程）获取到对象锁后才能继续执行（用对象锁做的线程间同步）
+                    return !mKillProcessAfterError; //这个返回值，是给AMS用的……默认值一定返回的是true啊，出现Crash，要求系统重启app进程……怪不得设置了忽略App崩溃之后自动重启了呢
                 }
             }
             return false; //当一个App进程出现崩溃后触发，返回true时，表示AMS重启进程（所以你很快可以看到重启的应用），当返回false时，表示立即杀死它（进程）,返回值表示AMS如何处理该进程……
@@ -412,10 +412,10 @@ public class Monkey {
          * 当一个应用进程出现ANR时会触发，卧槽，这个API我发现是给Setting App准备的吧，我算明白了……
          */
         public int appNotResponding(String processName, int pid, String processStats) {
-            StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites(); //创建一个对象，貌似是严格模式？
+            StrictMode.ThreadPolicy savedPolicy = StrictMode.allowThreadDiskWrites(); //创建一个StrictMode.ThreadPolicy对象，貌似是严格模式？
             Logger.err.println("// NOT RESPONDING: " + processName + " (pid " + pid + ")"); //向标准错误流中打印发生ANR的进程名和pid
             Logger.err.println(processStats); //打印进程的状态
-            StrictMode.setThreadPolicy(savedPolicy);
+            StrictMode.setThreadPolicy(savedPolicy); //这个静态方法setThreadPolicy（）干啥的？
 
             if (mMatchDescription == null || processStats.contains(mMatchDescription)) {
                 synchronized (Monkey.this) { //Binder线程池中的线程，需要获取到对象锁后，才能继续运行，一旦Monkey主线程释放掉对象锁，此时开始继续Binder线程的执行，而Monkey主线程因为没有对象锁，所以造成程序的停留，完美的线程间同步（进程间同步）
@@ -438,7 +438,7 @@ public class Monkey {
         }
 
         /**
-         * 当系统看门狗监测到系统挂了会触发该方
+         * 当系统看门狗监测到系统挂了也会触发该方法
          * 系统没响应时，AMS会回调此方法
          * @param message 没响应的原因
          * @return 返回的数字，表示退出状态码
@@ -449,10 +449,10 @@ public class Monkey {
             Logger.err.println("// WATCHDOG: " + message); //向标准错误打印WATCHDOG
             StrictMode.setThreadPolicy(savedPolicy);
 
-            synchronized (Monkey.this) { //竞争对象锁，Binder线程池中的某个线程，只有竞争到对象锁，才能执行代码块中的方法
+            synchronized (Monkey.this) { //竞争对象锁，Binder线程池中的某个工作线程，先竞争对象锁，获取到对象锁才能执行代码块中的方法，否则会被阻塞（对象锁作为线程间同步的方式）
                 if (mMatchDescription == null || message.contains(mMatchDescription)) { //如果没有设置匹配信息或者设置了匹配信息并包含的情况下
                     if (!mIgnoreCrashes) { //如果没有设置忽略崩溃，系统无响应时，Monkey程序也会结束
-                        mAbort = true; //修改共享变量（写入），用于Monkey程序结束，主线程结束，即Monkey程序结束
+                        mAbort = true; //Binder线程池中的工作线程修改共享变量（写入），Monkey的主线程会轮询该共享变量，当发现为true，Monkey程序会结束循环，主线程结束，整个monkey程序也就结束了
                     }
                     if (mRequestBugreport) { //如果在命令行中执行的需要bugreport
                         mRequestWatchdogBugreport = true; //修改共享变量，需要bugreport
