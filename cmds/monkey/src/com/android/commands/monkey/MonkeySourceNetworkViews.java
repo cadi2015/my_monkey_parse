@@ -46,7 +46,7 @@ import java.util.Map;
 /**
  * Utility class that enables Monkey to perform view introspection when issued Monkey Network
  * Script commands over the network.
- * 这个里面作者已经使用UiAutomation了……
+ * 这个里面作者已经使用UiAutomation对象了……
  */
 public class MonkeySourceNetworkViews {
 
@@ -101,7 +101,7 @@ public class MonkeySourceNetworkViews {
         COMMAND_MAP.put("getaccessibilityids", new GetAccessibilityIds());
     }
 
-    private static final HandlerThread sHandlerThread = new HandlerThread(HANDLER_THREAD_NAME); //类必须持有一个带有Looper的HandlerThread对象
+    private static final HandlerThread sHandlerThread = new HandlerThread(HANDLER_THREAD_NAME); //类必须持有一个带有Looper的HandlerThread对象,创建此工作线程
 
     /**
      * Registers the event listener for AccessibilityEvents.
@@ -112,16 +112,16 @@ public class MonkeySourceNetworkViews {
      * 可访问性服务。
      */
     public static void setup() {
-        sHandlerThread.setDaemon(true); //设置为守护线程
+        sHandlerThread.setDaemon(true); //设置工作线程为守护线程
         sHandlerThread.start(); //启动线程
         sUiTestAutomationBridge = new UiAutomation(sHandlerThread.getLooper(), //将线程中创建的Looper传进去
-                new UiAutomationConnection()); //原来自己创建一个UiAutomationConnection对象即可
-        sUiTestAutomationBridge.connect(); //与AcessiblityManagerService建立连接
+                new UiAutomationConnection()); //原来自己创建一个UiAutomationConnection对象即可，这个UiAutomation对象封装了很多功能
+        sUiTestAutomationBridge.connect(); //与AcessiblityManagerService建立连接，这就是其中一个最重要的功能
     }
 
     public static void teardown() {
         sHandlerThread.quit();
-    }
+    } //工作线程结束
 
     /**
      * Get the ID class for the given package.
@@ -159,8 +159,8 @@ public class MonkeySourceNetworkViews {
     /**
      *
      * @param viewId 表示控件的id
-     * @return
-     * @throws MonkeyViewException 可能会抛出的异常，
+     * @return AccessibilityNodeInfo对象，此对象表示一个控件
+     * @throws MonkeyViewException 可能会抛出的异常
      */
     private static AccessibilityNodeInfo getNodeByViewId(String viewId) throws MonkeyViewException {
         int connectionId = sUiTestAutomationBridge.getConnectionId();

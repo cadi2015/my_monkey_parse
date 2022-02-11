@@ -604,8 +604,9 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
         // talk to the monkey locally, or though adb port forwarding. //只能绑定本地主机的某个端口，两种使用方法，monkey在本地，或者通过adb的端口转发
         serverSocket = new ServerSocket(port,
                                         0, // default backlog
-                                        InetAddress.getLocalHost()); //创建ServerSocket对象，监听在本地主机的某个端口上
+                                        InetAddress.getLocalHost()); //创建ServerSocket对象，监听在本地主机的某个端口上，作为服务端，正常情况下，监听的线程，会再创建一个新的线程与客户端进程通信，服务端当前主进程则继续监听端口，当然这些都是内核的能力
     }
+
 
     /**
      * Start a network server listening on the specified port.  The
@@ -631,6 +632,7 @@ public class MonkeySourceNetwork implements MonkeyEventSource {
 
     /**
      * Stop the server from running so it can reconnect a new client.
+     * 如果需要新的客户端重新链接，则需要停止服务端
      */
     private void stopServer() throws IOException {
         clientSocket.close();

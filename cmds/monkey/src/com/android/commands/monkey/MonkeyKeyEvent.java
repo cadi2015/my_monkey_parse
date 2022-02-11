@@ -164,7 +164,7 @@ public class MonkeyKeyEvent extends MonkeyEvent {
         }
         if (!InputManager.getInstance().injectInputEvent(keyEvent,
                 InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) { //如果IMS注入事件失败，则返回INJECT_FAIL，表示注入事件失败
-            return MonkeyEvent.INJECT_FAIL;
+            return MonkeyEvent.INJECT_FAIL; //key事件，也是通过InputManagerService系统服务注入的……
         }
         return MonkeyEvent.INJECT_SUCCESS; //其他情况下返回注入事件成功
     }

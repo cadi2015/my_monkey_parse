@@ -22,6 +22,7 @@ import java.util.Random;
 /**
  * class for keeping a monkey event queue
  * 双向链表，存储的元素对象是MonkeyEvent
+ * 自定义的LinkedList
  */
 @SuppressWarnings("serial")
 public class MonkeyEventQueue extends LinkedList<MonkeyEvent> {

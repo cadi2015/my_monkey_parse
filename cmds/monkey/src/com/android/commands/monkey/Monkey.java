@@ -238,7 +238,7 @@ public class Monkey {
     private ArrayList<String> mScriptFileNames = new ArrayList<String>(); //用于保存每个脚本文件的名字，一个动态数组
 
     /** a TCP port to listen on for remote commands. */
-    private int mServerPort = -1; //远程Monkey时，需要监听的端口号
+    private int mServerPort = -1; //远程Monkey时，需要作为服务端的socket进程监听的端口号
 
     private static final File TOMBSTONES_PATH = new File("/data/tombstones"); //native崩溃日志目录
 
@@ -535,7 +535,7 @@ public class Monkey {
      * 在此方法中会创建一个子进程，且执行的线程（多数是Monkey主线程）会等待子进程完成工作后才会继续执行，这又涉及到进程间同步的知识点
      * @param reportName Simple tag that will print before the report and in
      *            various annotations. 报告名称（持久化文件）
-     * @param command Command line to execute. 调用的可执行文件
+     * @param command Command line to execute. 调用的可执行文件（外部程序）
      */
     private void commandLineReport(String reportName, String command) {
         Logger.err.println(reportName + ":"); //Monkey主进程（主线程）向标准错误流中输入报告名和一个冒号
@@ -545,19 +545,20 @@ public class Monkey {
         try {
             // Process must be fully qualified here because android.os.Process
             // is used elsewhere 这段话该怎么翻译？Runtime对象的exec（）方法执行程序后会返回一个Process对象，表示子进程
-            java.lang.Process p = Runtime.getRuntime().exec(command); //替换命令，在新的子进程中执行某个程序，返回一个Process对象表示子进程
+            java.lang.Process p = Runtime.getRuntime().exec(command); //替换命令，在新的子进程中执行某个程序，返回一个Process对象表示子进程（exec会执行内核的exec系统调用）
 
             if (mRequestBugreport) { //检查命令行参数中是否传入了需要使用bugreport
                 logOutput =
                         new BufferedWriter(new FileWriter(new File(Environment //创建可缓存的输出字符流
                                 .getLegacyExternalStorageDirectory(), reportName), true)); //创建一个通道，从内存中向reportName命名的文件中写入日志，这个文件的路径是Environment的静态方法getLegacyExternalStorageDirectory（）返回的路径
+                                //默认的内存缓冲区是8192个字节
             }
             // pipe everything from process stdout -> System.err，管道通常获取到的数据是进程的标准输出、标准错误？（这里使用了管道）Monkey主进程作为获取输入流的进程  即 子进程 | Monkey进程
             InputStream inStream = p.getInputStream(); //获取子进程的标准输入流对象（将子进程的标准输出信息、标准错误读取到内存中）……，这里可以获取到的是子进程的标准输出与标准错误数据，我猜测Monkey主进程会等待子进程完成工作，为啥InputStream对象可以这样？
             InputStreamReader inReader = new InputStreamReader(inStream); //将输入字节流，转成输入字符流
-            BufferedReader inBuffer = new BufferedReader(inReader); //在内存中创建一个BufferedReader对象作为缓冲区，用于缓存字符串流中的数据
+            BufferedReader inBuffer = new BufferedReader(inReader); //在当前进程的内存中创建一个BufferedReader对象作为缓冲区，用于缓存标准输入字符流中的数据（这里的意思是标准输入的数据，是从别的子进程获取到的，相当于中间建立了一个管道）
             String s; //创建一个String局部变量
-            while ((s = inBuffer.readLine()) != null) { //一行一行的读缓冲区中的数据，直到没有数据为止（如果管道里真的没有数据呢？）
+            while ((s = inBuffer.readLine()) != null) { //一行一行的读缓冲区中的数据，保存到局部变量s中，直到没有数据为止（如果管道里真的没有数据呢？）没有数据获取到的字符串为null
                 if (mRequestBugreport) { //如果需要执行Bugreport命令保存到文件中，命令行控制
                     try {
                         // When no space left on the device the write will 如果没有磁盘控件，将会报IOException
@@ -577,7 +578,7 @@ public class Monkey {
             } //读取完子进程的标准输出与标准错误，或者磁盘没有空间，循环结束
 
             int status = p.waitFor(); //在这里，Monkey主进程（主线程）会做等待（被阻塞），等待子进程执行的命令行程序（可执行文件）结束，当然不仅仅是bugreport（进程间同步），还要获取子进程的退出状态码
-            Logger.err.println("// " + reportName + " status was " + status); //子进程完成工作后，Monkey主进程向标准错误中打印报告日志的文件名，以及打印子进程的退出状态码
+            Logger.err.println("// " + reportName + " status was " + status); //子进程执行完成后，Monkey主进程向标准错误中写入报告日志的文件名，以及打印子进程的退出状态码
 
             if (logOutput != null) { //如果存在输出字符流对象
                 logOutput.close(); //关闭输出字符串流对象（释放内存）
@@ -598,12 +599,12 @@ public class Monkey {
         // TO DO: Add the script file name to the log.
         try {
             Writer output = new BufferedWriter(new FileWriter(new File(
-                    Environment.getLegacyExternalStorageDirectory(), "scriptlog.txt"), true)); //有一个scriptlog.txt文件，看下这是哪个目录，getLegacyExternalStorageDirectory，原来时/mnt/sdcard/目录，发现和/sdcard是同一个目录
+                    Environment.getLegacyExternalStorageDirectory(), "scriptlog.txt"), true)); //有一个scriptlog.txt文件，看下这是哪个目录，getLegacyExternalStorageDirectory，原来时/mnt/sdcard/目录，发现和/sdcard是同一个目录,那就是sd卡的根目录
             output.write("iteration: " + count + " time: "
                     + MonkeyUtils.toCalendarTime(System.currentTimeMillis()) + "\n");
-            output.close();
-        } catch (IOException e) {
-            Logger.err.println(e.toString());
+            output.close(); //输出关闭，释放内存，同时此时才从内存中写入到磁盘中
+        } catch (IOException e) { //标准输入、标准输出、标准有错误发生时……
+            Logger.err.println(e.toString()); //捕获并再次向标准错误中写入异常信息
         }
     }
 
@@ -717,7 +718,7 @@ public class Monkey {
                     mRandomizeThrottle, mProfileWaitTime, mDeviceSleepTime); //创建MonkeySourceScript对象，mEventSource指向此对象
             mEventSource.setVerbose(mVerbose); //设置MonkeySourceScript的监控等级，同Monkey对象持有的mVerbose保持一致
 
-            mCountEvents = false; //无需计算事件的次数
+            mCountEvents = false; //无需计算事件的次数，使用脚本文件时，无需计算事件数
         } else if (mScriptFileNames != null && mScriptFileNames.size() > 1) { //当指定多个脚本文件时，会走这里
             if (mSetupFileName != null) { //如果指定了初始化脚本文件，通过选项参数--setup可指定该文件的路径……
                 mEventSource = new MonkeySourceRandomScript(mSetupFileName, //可见第一个参数就是mSetupFileName文件名
@@ -730,7 +731,7 @@ public class Monkey {
                         mProfileWaitTime, mDeviceSleepTime, mRandomizeScript); //同样创建一个MonkeySourceRandomScript
             }
             mEventSource.setVerbose(mVerbose); //设置事件来源的日志等级（保持与Monkey中一样的等级）
-            mCountEvents = false; //无需计算事件数量
+            mCountEvents = false; //无需计算事件数量，指定多个脚本文件时，无需计算事件数量
         } else if (mServerPort != -1) { //TCP……，基于网络，mServerPort指定了一个端口
             try {
                 mEventSource = new MonkeySourceNetwork(mServerPort); //创建MonkeySourceNetwork对象，事件源再次改变
@@ -1184,7 +1185,7 @@ public class Monkey {
      * Run mCount cycles and see if we hit any crashers.
      * <p>
      * TODO: Meta state on keys
-     * 开始执行monkey事件，核心方法
+     * 开始执行monkey事件，核心方法，循环获取事件
      *
      * @return Returns the last cycle which executed. If the value == mCount, no
      *         errors detected. 返回值为发现的崩溃数量
@@ -1196,9 +1197,9 @@ public class Monkey {
         int cycleCounter = 0; //临时存储循环次数
 
         boolean shouldReportAnrTraces = false; //记录是否应该报告ANR的标志位
-        boolean shouldReportDumpsysMemInfo = false; //记录是否应该报告内存信息的标志位
-        boolean shouldAbort = false; //记录是否应该中断monkey主线程的标志位，即monkey程序是否应该终止
-        boolean systemCrashed = false; //记录系统是否发生崩溃的标志位，比如AMS服务可能会停止工作，那么Monkey进程也会停止了……有道理……
+        boolean shouldReportDumpsysMemInfo = false; //记录是否应该报告系统内存信息的标志位
+        boolean shouldAbort = false; //记录是否应该中断monkey主线程的标志位（monkey程序是否应该终止的标志位）
+        boolean systemCrashed = false; //记录系统是否发生崩溃的标志位，比如AMS服务可能会停止工作，那么Monkey进程也会停止……有道理……
 
         try {
             // 1、系统本身未崩溃
@@ -1229,7 +1230,7 @@ public class Monkey {
                         getBugreport("app_crash" + mReportProcessName + "_"); //生成app_crash文件，同样在子进程中进行
                         mRequestAppCrashBugreport = false; //防止下次循环中执行
                     }
-                    if (mRequestPeriodicBugreport){ //需要上报什么?这个蒙了，这是没有提取到事件的时候，会赋值为true
+                    if (mRequestPeriodicBugreport){ //需要上报什么?这个蒙了，这是没有提取到事件的时候，会赋值为true，阶段性的上报一次bugreport
                         getBugreport("Bugreport_"); //单纯的调用bugreport，卧槽，闹半天，每份报告都是单纯的bugreport，因为没有拿到事件
                         mRequestPeriodicBugreport = false; //防止下次循环中执行
                     }
@@ -1319,17 +1320,17 @@ public class Monkey {
                         }
                     }
 
-                    // Don't count throttling as an event.
-                    if (!(ev instanceof MonkeyThrottleEvent)) { //只要不是MonkeyThrottleEvent事件对象，就会累加次数，完美的将间隔事件忽略掉
+                    // Don't count throttling as an event. 作者说了，间隔事件不算
+                    if (!(ev instanceof MonkeyThrottleEvent)) { //只要不是MonkeyThrottleEvent事件对象，才算作事件次数，完美的将间隔事件忽略掉
                         eventCounter++; //事件总数增加1
                         if (mCountEvents) { //是否需要计算循环的次数
                             cycleCounter++;  //循环次数加1
                         }
                     }
-                } else { //这是从双向链表中，没有提取到事件对象的情况，厉害，这里基本走不到……牛逼，这个调试方法好
-                    if (!mCountEvents) { //如果不需要统计循环的执行次数
+                } else { //从双向链表中，没有提取到事件对象时会执行到这里，这里平时是不会走到的……牛逼，这个调试方法好
+                    if (!mCountEvents) { //如果不需要统计循环的执行次数，当使用单个脚本文件、多个脚本文件时，此时不需要统计事件的循环次数
                         cycleCounter++; //循环次数增加1
-                        writeScriptLog(cycleCounter); //把循环次数写入脚本文件
+                        writeScriptLog(cycleCounter); //把循环次数写入文件,这个文件用于记录程序的执行情况
                         //Capture the bugreport after n iteration
                         if (mGetPeriodicBugreport) { //这是处理啥呢？
                             if ((cycleCounter % mBugreportFrequency) == 0) {
@@ -1343,7 +1344,7 @@ public class Monkey {
                 }
                 //（理解错误，每次修饰的代码块结束后，既会释放Monkey对象锁）
             }
-        } catch (RuntimeException e) {
+        } catch (RuntimeException e) { //所有运行时异常手工捕获，并向标准错误中写入信息，同时程序并不结束……
             Logger.error("** Error: A RuntimeException occurred:", e); //捕获到运行时异常，标准错误流输出结果，以及在标准错误流中打印异常对象的调用堆栈信息
         }
         Logger.out.println("Events injected: " + eventCounter); //当系统出现错误，或者事件数量到了，在标准输出流中输出事件数
@@ -1363,9 +1364,9 @@ public class Monkey {
             mAm.signalPersistentProcesses(Process.SIGNAL_USR1); //使用AMS的signalPersistentProcesses方法，并把信号传递过去，SIGNAL_USR1这个信号是一个自定义信号
 
             synchronized (this) { //monkey主线程获取Monkey对象锁
-                wait(2000); //主线程休息2s
+                wait(2000); //主线程等待2s
             } //释放Monkey对象锁
-        } catch (RemoteException e) {
+        } catch (RemoteException e) { //远程服务出错时，向标准错误写入信息
             Logger.err.println("** Failed talking with activity manager!"); //发生远程服务错误，在标准错误流中输出一行信息
         } catch (InterruptedException e) {
         }
@@ -1412,7 +1413,7 @@ public class Monkey {
 
     /**
      * Wait for the given tombstone file to be completely written.
-     * 用于等待文件写入完成
+     * 用于等待tombstone文件写入完成
      * @param path The path of the tombstone file.
      */
     private void waitForTombstoneToBeWritten(Path path) {
@@ -1537,7 +1538,7 @@ public class Monkey {
 
     /**
      * Print how to use this command.
-     * 告知用户怎么使用monkey命令行，字符串会输出到标注错误流中
+     * 告知用户怎么使用monkey命令行，字符串会输出到标准错误中
      */
     private void showUsage() {
         StringBuffer usage = new StringBuffer();

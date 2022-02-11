@@ -427,26 +427,26 @@ public class MonkeySourceRandom implements MonkeyEventSource {
      *
      */
     private void generateTrackballEvent(Random random) {
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 10; ++i) { //重复10次，意味着，每次添加10个轨迹球MOVE事件
             // generate a small random step
-            int dX = random.nextInt(10) - 5;
+            int dX = random.nextInt(10) - 5; //随机范围非常克制
             int dY = random.nextInt(10) - 5;
 
-            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_MOVE)
+            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_MOVE) //ACTION_MOVE代表轨迹球的移动事件
                     .addPointer(0, dX, dY)
                     .setIntermediateNote(i > 0));
         }
 
-        // 10% of trackball moves end with a click
-        if (0 == random.nextInt(10)) {
-            long downAt = SystemClock.uptimeMillis();
+        // 10% of trackball moves end with a click ，相当于10%的概率（0-9）
+        if (0 == random.nextInt(10)) { //只有随机到0的时候，才会构造轨迹球的点击事件
+            long downAt = SystemClock.uptimeMillis(); //记录按下的时间戳
 
-            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_DOWN)
+            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_DOWN) //ACTION_DOWN代表轨迹球的事件下
                     .setDownTime(downAt)
                     .addPointer(0, 0, 0)
                     .setIntermediateNote(true));
 
-            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_UP)
+            mQ.addLast(new MonkeyTrackballEvent(MotionEvent.ACTION_UP) //ACTION_UP代表轨迹球的事件上
                     .setDownTime(downAt)
                     .addPointer(0, 0, 0)
                     .setIntermediateNote(false));

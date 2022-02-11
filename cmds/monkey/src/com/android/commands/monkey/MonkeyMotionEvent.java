@@ -31,7 +31,7 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
     private long mDownTime; //MonkeyMotionEvent对象持有的记录按下的时间点
     private long mEventTime; //MonkeyMotionEvent对象持有的记录事件发生时的时间点
     private int mAction; //持有的动作
-    private SparseArray<MotionEvent.PointerCoords> mPointers; //MonkeyMotionEvent持有一个集合对象（SparseArray），key只能为整型、value则为MotionEvent.PointerCoords对象，草，想在内存中干嘛？
+    private SparseArray<MotionEvent.PointerCoords> mPointers; //MonkeyMotionEvent持有一个集合对象（SparseArray对象），key只能为整型、value则为MotionEvent.PointerCoords对象，草，想在内存中干嘛？
     private int mMetaState; //对应于MotionEvent中的obtain（）方法中metaState，任何元/修饰符键在何时生效的状态，卧槽
     private float mXPrecision; //正在报告的X坐标的精度（也对应于MonkeyEvent的obtain（）方法
     private float mYPrecision; //正在报告的Y坐标的精度
@@ -80,8 +80,8 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
      * @param id 表示在集合中存储时用的Key
      * @param x 点的x坐标
      * @param y 点的y坐标
-     * @param pressure
-     * @param size
+     * @param pressure 代表压力
+     * @param size 这玩意代表啥？
      * @return
      */
     public MonkeyMotionEvent addPointer(int id, float x, float y,
@@ -220,7 +220,7 @@ public abstract class MonkeyMotionEvent extends MonkeyEvent {
         }
         try {
             if (!InputManager.getInstance().injectInputEvent(me,  //走到这里才是真的向手机注入事件，通过InputManager的injectInputEvent注入事件，传入MotionEvent对象
-                    InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) { //依赖InputManagerService系统服务注入事件
+                    InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT)) { //依赖InputManagerService系统服务注入事件,看来还得死磕Android的系统服务
                 return MonkeyEvent.INJECT_FAIL; //只要IMS返回的是失败，则证明注入失败，看来这里也是同步方法，Monkey主线程会等待执行完……
             }
         } finally {
